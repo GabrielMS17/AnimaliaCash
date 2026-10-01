@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { supabase } from '../supabase';
+import { supabase } from '../../supabase';
 
 export default function LoginScreen({ onLoginSuccess }) {
   const [identifier, setIdentifier] = useState('');
