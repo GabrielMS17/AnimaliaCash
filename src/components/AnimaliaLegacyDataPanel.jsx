@@ -2,14 +2,14 @@ import { Link } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import {
-    initialClinicSettings,
-    initialInsumos,
-    initialProcedures,
+  initialClinicSettings,
+  initialInsumos,
+  initialProcedures,
 } from "../data/initialData";
 import {
-    calculateProcedure,
-    formatBRL,
-    formatDuration,
+  calculateProcedure,
+  formatBRL,
+  formatDuration,
 } from "../utils/costCalculations";
 
 const procedureCategories = [
@@ -87,10 +87,10 @@ export default function AnimaliaLegacyDataPanel({
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                style={[
+                style={StyleSheet.flatten([
                   styles.filterButton,
                   active && styles.filterButtonActive,
-                ]}
+                ])}
               >
                 <Text
                   style={[styles.filterText, active && styles.filterTextActive]}
@@ -160,7 +160,7 @@ export default function AnimaliaLegacyDataPanel({
                   {calculation.itemsCount} insumos
                 </Text>
                 <View style={styles.costRow}>
-                  <Text style={styles.costLabel}>Custo calculado</Text>
+                  <Text style={styles.costLabel}>Custo calculated</Text>
                   <Text style={styles.costValue}>
                     {formatBRL(calculation.breakdown.totalCost)}
                   </Text>

@@ -7,15 +7,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // Adaptação para evitar o erro 'window is not defined' na Web/SSR
 const customStorage = {
-  getItem: (key: string) => {
+  getItem: (key) => {
     if (typeof window === 'undefined') return null;
     return AsyncStorage.getItem(key);
   },
-  setItem: (key: string, value: string) => {
+  setItem: (key, value) => {
     if (typeof window === 'undefined') return;
     return AsyncStorage.setItem(key, value);
   },
-  removeItem: (key: string) => {
+  removeItem: (key) => {
     if (typeof window === 'undefined') return;
     return AsyncStorage.removeItem(key);
   },
