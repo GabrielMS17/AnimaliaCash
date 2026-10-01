@@ -1,56 +1,81 @@
-# Welcome to your Expo app 👋
+# 🐾 Animalia Cash
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> **Sistema de Gestão Financeira e Controle de Estoque por Fracionamento para Clínicas Veterinárias e Pet Shops.**
 
-## Get started
+O **Animalia Cash** é uma solução completa desenvolvida para controlar com precisão o custo operacional de atendimentos veterinários e estéticos. O sistema automatiza a conversão de compras em lote (frascos de medicamentos em mL, pacotes de insumos e utensílios por vida útil) em custos unitários de consumo, permitindo o abate automático de estoque e o cálculo do Lucro Líquido por atendimento em tempo real.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Tecnologias Utilizadas
 
-2. Start the app
+- **Mobile:** [React Native](https://reactnative.dev/) com [Expo](https://expo.dev/) (TypeScript)
+- **Estilização:** NativeWind / Tailwind CSS
+- **Back-end & Banco de Dados:** [Supabase](https://supabase.com/) (PostgreSQL, Autenticação e Row Level Security)
+- **Gerenciamento de Estado & Hooks:** React Hooks, Context API e Supabase JS Client
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## Principais Funcionalidades
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 1. Gestão de Estoque e Compras por Fracionamento
+- Cadastro de produtos com fracionamento dinâmico (mL, gramas ou unidades).
+- Motor de cálculo automático de custo médio por mililitro e por vida útil de utensílios.
+- Alertas de estoque mínimo e relatórios de perdas/vencimentos.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### 2. Custos Fixos e Taxas
+- Cadastro de custos fixos mensais (aluguel, energia, salários, etc.).
+- Cálculo automático do valor da Hora/Sala Operacional.
+- Configuração de taxas percentuais por meio de pagamento (Débito, Crédito, PIX).
 
-## Get a fresh project
+### 3. Fichas Técnicas e Templates de Serviços
+- Pré-configuração de insumos padrão por procedimento (ex: Banho Porte P, Castração Felina, Cirurgias).
+- Agilidade no lançamento operacional diário com ajustes de variação.
 
-When you're ready, run:
+### 4. Operação Diária de Atendimentos
+- **Cirurgias e Internações:** Lançamento de dosagens exatas em mL, tempo de sala e comissão da equipe.
+- **Banho e Tosa:** Registro por porte do animal, quantidade real de produtos líquidos e desgastes de lâminas/acessórios.
+
+### 5. Checkout & Apuração por Atendimento
+- Baixa automática no estoque em tempo real.
+- Cálculo do **Custo do Serviço Prestado (CSP)** e **Margem Bruta Operacional**.
+- Indicador visual instantâneo de rentabilidade (Lucro x Prejuízo).
+
+### 6. Relatórios Financeiros & DRE
+- Demonstrativo do Resultado do Exercício (DRE) Sintética e Analítica.
+- Painel de indicadores com gráfico de procedimentos mais lucrativos e Ponto de Equilíbrio Operacional.
+
+---
+
+## 🔐 Perfis de Acesso (RBAC)
+
+1. **Administrador:** Acesso completo a compras, estoque, custos fixos, relatórios financeiros e DRE.
+2. **Profissional (Veterinário / Esteticista):** Acesso restrito a lançamentos operacionais de atendimentos, sem visualização de dados financeiros sigilosos.
+
+---
+
+## Como Executar o Projeto
+
+### Pré-requisitos
+- [Node.js](https://nodejs.org/) instalado.
+- Aplicação [Expo Go](https://expo.dev/go) instalada no dispositivo móvel (Android/iOS).
+- Conta configurada no [Supabase](https://supabase.com/).
+
+### Passo a Passo
 
 ```bash
-npm run reset-project
-```
+# 1. Clonar o repositório
+git clone [https://github.com/julianicioli/AnimaliaCash.git](https://github.com/julianicioli/AnimaliaCash.git)
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+# 2. Entrar na pasta do projeto
+cd AnimaliaCash
 
-### Other setup steps
+# 3. Instalar as dependências
+npm install
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+# 4. Configurar as variáveis de ambiente
+# Crie um arquivo .env na raiz do projeto com as chaves do seu Supabase:
+EXPO_PUBLIC_SUPABASE_URL=sua_url_do_supabase
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anonima_do_supabase
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# 5. Iniciar o servidor de desenvolvimento Expo
+npx expo start -c
