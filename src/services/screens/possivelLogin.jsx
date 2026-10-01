@@ -65,7 +65,7 @@ export default function LoginScreen({ onLoginSuccess }) {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={styles.mainWrapper}
     >
       {Platform.OS === 'web' && (
         <style type="text/css">{`
@@ -74,18 +74,22 @@ export default function LoginScreen({ onLoginSuccess }) {
             padding: 0 !important;
             width: 100%;
             height: 100%;
-            background-color: #F4F7F6;
+            background-color: #F8FAFC;
           }
         `}</style>
       )}
 
-      {/* Navbar Superior */}
-      <View style={styles.topBar}>
-        <Text style={styles.logoText}>Animalia Cash</Text>
-        <Text style={styles.subLogoText}>Clínica Veterinária Vida Animal</Text>
+      {/* Header Institucional Padronizado */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerTextGroup}>
+          <Text style={styles.brandTitle}>
+            Animalia<Text style={styles.brandSubtitle}>Cash</Text>
+          </Text>
+          <Text style={styles.brandTagline}>SOLUÇÕES FINANCEIRAS</Text>
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Card do Formulário */}
         <View style={[styles.card, isMobile && styles.cardMobile]}>
           <Text style={styles.title}>Acesse a Plataforma</Text>
@@ -120,53 +124,75 @@ export default function LoginScreen({ onLoginSuccess }) {
             />
           </View>
 
-          {/* Botão de Entrar */}
+          {/* Botão de Entrar (Ação Primária em Verde ACCENT_GREEN) */}
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={styles.buttonPrimary}
             onPress={handleLogin}
             disabled={loading}
+            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.primaryButtonText}>Entrar</Text>
+              <Text style={styles.buttonText}>Entrar</Text>
             )}
           </TouchableOpacity>
+        </View>
+
+        {/* Rodapé Corporativo */}
+        <View style={styles.footerContainer}>
+          <Text style={styles.footerText}>
+            © {new Date().getFullYear()} Animalia Cash — Soluções Financeiras
+          </Text>
+          <Text style={styles.footerSubtext}>Todos os direitos reservados.</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
+const PRIMARY_DARK = '#0C2D48';
+const ACCENT_GREEN = '#00A86B';
+const BG_LIGHT = '#F8FAFC';
+
 const styles = StyleSheet.create({
-  container: {
+  mainWrapper: {
     flex: 1,
-    backgroundColor: '#F4F7F6',
+    backgroundColor: BG_LIGHT,
   },
-  topBar: {
-    width: '100%',
-    backgroundColor: '#0F172A',
-    paddingVertical: 20,
+  headerContainer: {
+    backgroundColor: PRIMARY_DARK,
+    paddingTop: Platform.OS === 'ios' ? 44 : 15,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: Platform.OS === 'ios' ? 44 : 20,
   },
-  logoText: {
-    color: '#10B981',
-    fontWeight: 'bold',
-    fontSize: 22,
-  },
-  subLogoText: {
-    color: '#94A3B8',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'flex-start',
+  headerTextGroup: {
     alignItems: 'center',
-    paddingTop: 70,
-    paddingBottom: 40,
+  },
+  brandTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  brandSubtitle: {
+    color: ACCENT_GREEN,
+  },
+  brandTagline: {
+    color: '#94A3B8',
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    marginTop: -2,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    paddingBottom: 32,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -174,57 +200,74 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     borderRadius: 12,
     padding: 28,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     borderLeftWidth: 5,
-    borderLeftColor: '#10B981',
+    borderLeftColor: ACCENT_GREEN,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
   },
   cardMobile: {
-    width: '92%',
-    padding: 22,
+    width: '100%',
+    padding: 20,
   },
   title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    marginBottom: 6,
+    fontSize: 20,
+    fontWeight: '700',
+    color: PRIMARY_DARK,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 13,
     color: '#64748B',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   inputContainer: {
-    marginBottom: 18,
+    marginBottom: 16,
   },
   label: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: '700',
+    color: PRIMARY_DARK,
     marginBottom: 6,
   },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#E2E8F0',
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#0F172A',
+    color: PRIMARY_DARK,
   },
-  primaryButton: {
-    backgroundColor: '#0F172A',
-    paddingVertical: 14,
+  buttonPrimary: {
+    backgroundColor: ACCENT_GREEN,
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
   },
-  primaryButtonText: {
+  buttonText: {
     color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  footerContainer: {
+    marginTop: 32,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  footerSubtext: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 2,
   },
 });

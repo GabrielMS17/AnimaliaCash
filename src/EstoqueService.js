@@ -1,21 +1,20 @@
-import { supabase } from './Supabase';
+// Banco de dados em memória para testes sem Supabase
+let produtosMock = [];
 
 export async function cadastrarProduto({ nome, marca, tipo_fracionamento, estoque_minimo, vida_util_usos }) {
-  const { data, error } = await supabase
-    .from('produtos')
-    .insert([
-      {
-        nome,
-        marca,
-        tipo_fracionamento,
-        estoque_minimo: parseFloat(estoque_minimo) || 0,
-        vida_util_usos: vida_util_usos ? parseInt(vida_util_usos) : 1,
-      },
-    ])
-    .select();
+  const novoProduto = {
+    id: String(Date.now()),
+    nome,
+    marca,
+    tipo_fracionamento,
+    estoque_minimo: parseFloat(estoque_minimo) || 0,
+    vida_util_usos: vida_util_usos ? parseInt(vida_util_usos) : 1,
+    saldo_estoque: 0,
+    custo_medio_unitario: 0,
+  };
 
-  if (error) throw new Error(error.message);
-  return data;  
+  produtosMock.push(novoProduto);
+  return [novoProduto];
 }
 
 export async function registrarEntradaLote({ produto_id, numero_lote, data_validade, quantidade_adquirida, valor_total_lote }) {
@@ -23,47 +22,37 @@ export async function registrarEntradaLote({ produto_id, numero_lote, data_valid
   const valorTotal = parseFloat(valor_total_lote);
   const custoUnitario = valorTotal / qtd;
 
-  const { data, error } = await supabase
-    .from('lotes_compras')
-    .insert([
-      {
-        produto_id,
-        numero_lote,
-        data_validade: data_validade || null,
-        quantidade_adquirida: qtd,
-        valor_total_lote: valorTotal,
-        custo_por_unidade_lote: custoUnitario,
-      },
-    ])
-    .select();
+  const produto = produtosMock.find((p) => p.id === produto_id);
+  if (produto) {
+    produto.saldo_estoque = (produto.saldo_estoque || 0) + qtd;
+    produto.custo_medio_unitario = custoUnitario;
+  }
 
-  if (error) throw new Error(error.message);
-  return data;
+  const novoLote = {
+    id: String(Date.now()),
+    produto_id,
+    numero_lote,
+    data_validade: data_validade || null,
+    quantidade_adquirida: qtd,
+    valor_total_lote: valorTotal,
+    custo_por_unidade_lote: custoUnitario,
+  };
+
+  return [novoLote];
 }
 
 export async function listarProdutos() {
-  const { data, error } = await supabase
-    .from('produtos')
-    .select('*')
-    .order('nome', { ascending: true });
-
-  if (error) throw new Error(error.message);
-  return data;
+  return [...produtosMock].sort((a, b) => a.nome.localeCompare(b.nome));
 }
 
 export async function registrarPerda({ produto_id, quantidade_perdida, motivo, observacao }) {
-  const { data, error } = await supabase
-    .from('perdas_estoque')
-    .insert([
-      {
-        produto_id,
-        quantidade_perdida: parseFloat(quantidade_perdida),
-        motivo,
-        observacao,
-      },
-    ])
-    .select();
+  const novaPerda = {
+    id: String(Date.now()),
+    produto_id,
+    quantidade_perdida: parseFloat(quantidade_perdida),
+    motivo,
+    observacao,
+  };
 
-  if (error) throw new Error(error.message);
-  return data;
+  return [novaPerda];
 }
