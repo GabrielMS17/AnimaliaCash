@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "AnimaliaCashjr",
-    "slug": "AnimaliaCashjr",
+    "name": "AnimaliaCash",
+    "slug": "AnimaliaCash",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "animaliacashjr",
+    "scheme": "animaliacash",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
