@@ -21,15 +21,16 @@ export default function CustosETaxasScreen({ goToLogin }) {
   ];
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Navbar Superior */}
-      <View style={styles.navbar}>
-        <View>
-          <Text style={styles.logoText}>Animalia Cash</Text>
-          <Text style={styles.subLogoText}>Clínica Veterinária Vida Animal</Text>
+    <View style={styles.mainWrapper}>
+      {/* Header Institucional Padronizado */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerTextGroup}>
+          <Text style={styles.brandTitle}>
+            Animalia<Text style={styles.brandSubtitle}>Cash</Text>
+          </Text>
+          <Text style={styles.brandTagline}>SOLUÇÕES FINANCEIRAS</Text>
         </View>
 
-        {/* Botão de Logout para voltar ao Login */}
         {goToLogin && (
           <TouchableOpacity onPress={goToLogin} style={styles.logoutButton}>
             <Text style={styles.logoutButtonText}>Sair</Text>
@@ -37,32 +38,34 @@ export default function CustosETaxasScreen({ goToLogin }) {
         )}
       </View>
 
-      <View style={styles.content}>
-        {/* Banner do Módulo */}
-        <View style={styles.headerCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Custos Fixos e Taxas</Text>
-            <Text style={styles.headerSubtitle}>
-              Gerencie custos operacionais, cálculo de hora/sala e taxas de meios de pagamento.
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>
-              {tab === 'custos' ? '+ Novo Custo Fixo' : '+ Nova Taxa'}
-            </Text>
-          </TouchableOpacity>
+      {/* Conteúdo Principal */}
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
+        <View style={styles.pageHeader}>
+          <Text style={styles.sectionTitle}>Custos Fixos e Taxas</Text>
+          <Text style={styles.sectionSubtitle}>
+            Gerencie custos operacionais, cálculo de hora/sala e taxas de meios de pagamento.
+          </Text>
         </View>
 
         {/* Métrica / Indicador do Cálculo Hora/Sala */}
-        <View style={styles.metricCard}>
-          <View>
-            <Text style={styles.metricTitle}>Hora/Sala Operacional Calculada</Text>
-            <Text style={styles.metricSub}>Baseado na estrutura e custos fixos mensais cadastrados</Text>
+        <View style={styles.card}>
+          <View style={styles.metricRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.metricTitle}>Hora/Sala Operacional Calculada</Text>
+              <Text style={styles.metricSub}>Baseado na estrutura e custos fixos mensais cadastrados</Text>
+            </View>
+            <Text style={styles.metricValue}>R$ 42,50 / h</Text>
           </View>
-          <Text style={styles.metricValue}>R$ 42,50 / hora</Text>
         </View>
 
-        {/* Filtros / Tabs */}
+        {/* Botão de Ação Primário */}
+        <TouchableOpacity style={styles.buttonPrimary}>
+          <Text style={styles.buttonText}>
+            {tab === 'custos' ? '+ Novo Custo Fixo' : '+ Nova Taxa'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Filtros / Tabs Estilizados */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tabButton, tab === 'custos' && styles.tabButtonActive]}
@@ -72,6 +75,7 @@ export default function CustosETaxasScreen({ goToLogin }) {
               Custos Fixos Mensais
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.tabButton, tab === 'taxas' && styles.tabButtonActive]}
             onPress={() => setTab('taxas')}
@@ -84,7 +88,8 @@ export default function CustosETaxasScreen({ goToLogin }) {
 
         {/* Tabela de Custos Fixos / Taxas */}
         {tab === 'custos' ? (
-          <View style={styles.tableCard}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Custos Fixos Cadastrados</Text>
             <View style={styles.tableHeader}>
               <Text style={[styles.columnHeader, { flex: 2 }]}>Nome / Descrição</Text>
               <Text style={[styles.columnHeader, { flex: 1 }]}>Categoria</Text>
@@ -95,12 +100,13 @@ export default function CustosETaxasScreen({ goToLogin }) {
               <View key={item.id} style={styles.tableRow}>
                 <Text style={[styles.cellTextBold, { flex: 2 }]}>{item.nome}</Text>
                 <Text style={[styles.cellText, { flex: 1 }]}>{item.categoria}</Text>
-                <Text style={[styles.cellTextBold, { flex: 1, textAlign: 'right' }]}>{item.valor}</Text>
+                <Text style={[styles.cellCost, { flex: 1, textAlign: 'right' }]}>{item.valor}</Text>
               </View>
             ))}
           </View>
         ) : (
-          <View style={styles.tableCard}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Taxas de Pagamento Cadastradas</Text>
             <View style={styles.tableHeader}>
               <Text style={[styles.columnHeader, { flex: 1.5 }]}>Meio / Bandeira</Text>
               <Text style={[styles.columnHeader, { flex: 2 }]}>Forma de Pagamento</Text>
@@ -116,163 +122,151 @@ export default function CustosETaxasScreen({ goToLogin }) {
             ))}
           </View>
         )}
-      </View>
-    </ScrollView>
+
+        {/* Rodapé Corporativo */}
+        <View style={styles.footerContainer}>
+          <Text style={styles.footerText}>© {new Date().getFullYear()} Animalia Cash — Soluções Financeiras</Text>
+          <Text style={styles.footerSubtext}>Todos os direitos reservados.</Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
+const PRIMARY_DARK = '#0C2D48';
+const ACCENT_GREEN = '#00A86B';
+const BG_LIGHT = '#F8FAFC';
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F6FA',
-  },
-  navbar: {
-    backgroundColor: '#0F172A',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+  mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
+  headerContainer: {
+    backgroundColor: PRIMARY_DARK,
+    paddingTop: 15,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  logoText: {
-    color: '#00E676',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  subLogoText: {
-    color: '#94A3B8',
-    fontSize: 12,
-  },
+  headerTextGroup: { justifyContent: 'center' },
+  brandTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
+  brandSubtitle: { color: ACCENT_GREEN },
+  brandTagline: { color: '#94A3B8', fontSize: 9, fontWeight: '600', letterSpacing: 1.5, marginTop: -2 },
   logoutButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 6,
-    backgroundColor: '#1E293B',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   logoutButtonText: {
     color: '#94A3B8',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
-  content: {
-    padding: 24,
-    maxWidth: 1200,
-    alignSelf: 'center',
-    width: '100%',
-  },
-  headerCard: {
-    backgroundColor: '#E2E8F0',
+  container: { flex: 1 },
+  contentPadding: { padding: 16, paddingBottom: 32 },
+  pageHeader: { marginBottom: 16 },
+  sectionTitle: { fontSize: 22, fontWeight: '700', color: PRIMARY_DARK },
+  sectionSubtitle: { fontSize: 13, color: '#64748B', marginTop: 4 },
+  card: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#0F172A',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#475569',
-    marginTop: 4,
-  },
-  primaryButton: {
-    backgroundColor: '#0F172A',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  primaryButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  metricCard: {
-    backgroundColor: '#FFF',
     padding: 18,
-    borderRadius: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    elevation: 2,
   },
-  metricTitle: {
-    fontWeight: 'bold',
-    fontSize: 15,
-    color: '#1E293B',
+  cardTitle: { fontSize: 16, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 14 },
+  metricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  metricSub: {
-    fontSize: 12,
-    color: '#64748B',
+  metricTitle: { fontWeight: '700', fontSize: 15, color: PRIMARY_DARK },
+  metricSub: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  metricValue: { fontSize: 18, fontWeight: '800', color: ACCENT_GREEN },
+  buttonPrimary: {
+    backgroundColor: ACCENT_GREEN,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  metricValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#22C55E',
-  },
+  buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   tabContainer: {
     flexDirection: 'row',
     marginBottom: 16,
-    gap: 10,
   },
   tabButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    backgroundColor: '#E2E8F0',
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    marginRight: 6,
   },
   tabButtonActive: {
-    backgroundColor: '#0F172A',
+    backgroundColor: PRIMARY_DARK,
+    borderColor: PRIMARY_DARK,
   },
   tabText: {
     color: '#475569',
+    fontSize: 12,
     fontWeight: '600',
   },
   tabTextActive: {
-    color: '#FFF',
-  },
-  tableCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 10,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   tableHeader: {
     flexDirection: 'row',
-    paddingBottom: 12,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
   columnHeader: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#64748B',
     textTransform: 'uppercase',
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     alignItems: 'center',
   },
   cellTextBold: {
-    fontWeight: 'bold',
-    color: '#1E293B',
-    fontSize: 14,
+    fontWeight: '700',
+    color: PRIMARY_DARK,
+    fontSize: 13,
   },
   cellText: {
     color: '#64748B',
-    fontSize: 14,
+    fontSize: 13,
+  },
+  cellCost: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: PRIMARY_DARK,
   },
   cellBadge: {
-    color: '#0F172A',
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
+    color: ACCENT_GREEN,
   },
+  footerContainer: {
+    marginTop: 24,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  footerText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+  footerSubtext: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
 });

@@ -1,4 +1,4 @@
-import AnimaliaDataRoute from "../components/AnimaliaDataRoute";
+import AnimaliaDataRoute from "../../components/AnimaliaDataRoute";
 
 export default function BanhoTosaRoute() {
   return (
