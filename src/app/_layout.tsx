@@ -1,33 +1,28 @@
 import { Slot, useRouter, useSegments } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { supabase } from '../supabase';
+import DevNavBar from '../components/DevNavBar';
+import { AnimaliaDataProvider, useAnimaliaData } from '../store/AnimaliaDataContext';
+
+// Exige login para acessar o app. Use false só para testes locais sem autenticação.
+const LOGIN_OBRIGATORIO = true;
 
 export default function RootLayout() {
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  return (
+    <AnimaliaDataProvider>
+      <AuthGate />
+    </AnimaliaDataProvider>
+  );
+}
+
+// A sessão vem do AnimaliaDataProvider, que é a única parte do app que escuta o login do Supabase
+function AuthGate() {
+  const { session, sessionLoaded } = useAnimaliaData();
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
-    // 1. Obtém sessão atual
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    // 2. Escuta mudanças na autenticação (login / logout)
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (loading) return;
+    if (!sessionLoaded || !LOGIN_OBRIGATORIO) return;
 
     const inAuthGroup = segments[0] === 'Login';
 
@@ -38,9 +33,9 @@ export default function RootLayout() {
       // Se já está logado e tenta acessar o Login, manda para a tela inicial
       router.replace('/');
     }
-  }, [session, loading, segments]);
+  }, [session, sessionLoaded, segments, router]);
 
-  if (loading) {
+  if (!sessionLoaded && LOGIN_OBRIGATORIO) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0F172A' }}>
         <ActivityIndicator size="large" color="#10B981" />
@@ -48,5 +43,10 @@ export default function RootLayout() {
     );
   }
 
-  return <Slot />;
+  return (
+    <View style={{ flex: 1 }}>
+      <DevNavBar />
+      <Slot />
+    </View>
+  );
 }

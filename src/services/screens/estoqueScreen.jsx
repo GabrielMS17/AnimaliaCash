@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +9,8 @@ import {
   View
 } from 'react-native';
 import { cadastrarProduto, listarProdutos, registrarEntradaLote } from '../../EstoqueService';
+import AppHeader from '../../components/AppHeader';
+import { notify } from '../../components/ui';
 
 export default function EstoqueScreen() {
   const [menuAtivo, setMenuAtivo] = useState('estoque');
@@ -50,7 +51,7 @@ export default function EstoqueScreen() {
         setProdutoSelecionadoId(dados[0].id); // Seleciona o primeiro produto por padrão
       }
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível carregar os produtos: ' + error.message);
+      notify('Erro', 'Não foi possível carregar os produtos: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -58,7 +59,7 @@ export default function EstoqueScreen() {
 
   async function handleCadastrarProduto() {
     if (!nome.trim()) {
-      Alert.alert('Atenção', 'Informe o nome do produto.');
+      notify('Atenção', 'Informe o nome do produto.');
       return;
     }
 
@@ -71,13 +72,13 @@ export default function EstoqueScreen() {
         estoque_minimo: estoqueMinimo,
       });
 
-      Alert.alert('Sucesso', 'Produto cadastrado!');
+      notify('Sucesso', 'Produto cadastrado!');
       setNome('');
       setMarca('');
       setEstoqueMinimo('');
       carregarProdutos();
     } catch (error) {
-      Alert.alert('Erro ao cadastrar', error.message);
+      notify('Erro ao cadastrar', error.message);
     } finally {
       setLoading(false);
     }
@@ -85,7 +86,7 @@ export default function EstoqueScreen() {
 
   async function handleRegistrarLote() {
     if (!produtoSelecionadoId || !quantidade || !valorTotal) {
-      Alert.alert('Atenção', 'Selecione um produto e preencha a quantidade e valor total.');
+      notify('Atenção', 'Selecione um produto e preencha a quantidade e valor total.');
       return;
     }
 
@@ -93,7 +94,7 @@ export default function EstoqueScreen() {
     const valorNum = parseFloat(valorTotal.toString().replace(',', '.'));
 
     if (isNaN(qtdNum) || isNaN(valorNum)) {
-      Alert.alert('Atenção', 'Quantidade e Valor Total devem ser números válidos.');
+      notify('Atenção', 'Quantidade e Valor Total devem ser números válidos.');
       return;
     }
 
@@ -106,13 +107,13 @@ export default function EstoqueScreen() {
         valor_total_lote: valorNum,
       });
 
-      Alert.alert('Sucesso', 'Lote registrado e Custo Médio recalculado!');
+      notify('Sucesso', 'Lote registrado e Custo Médio recalculado!');
       setNumeroLote('');
       setQuantidade('');
       setValorTotal('');
       carregarProdutos();
     } catch (error) {
-      Alert.alert('Erro ao registrar lote', error.message);
+      notify('Erro ao registrar lote', error.message);
     } finally {
       setLoading(false);
     }
@@ -120,13 +121,7 @@ export default function EstoqueScreen() {
 
   return (
     <View style={styles.mainWrapper}>
-      {/* Header Institucional */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerTextGroup}>
-          <Text style={styles.brandTitle}>Animalia<Text style={styles.brandSubtitle}>Cash</Text></Text>
-          <Text style={styles.brandTagline}>SOLUÇÕES FINANCEIRAS</Text>
-        </View>
-      </View>
+      <AppHeader />
 
       {/* Menu com Módulos */}
       <View style={styles.menuContainer}>
@@ -322,19 +317,6 @@ const BG_LIGHT = '#F8FAFC';
 
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
-  headerContainer: {
-    backgroundColor: PRIMARY_DARK,
-    paddingTop: 15,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoImage: { width: 42, height: 42, marginRight: 12 },
-  headerTextGroup: { justifyContent: 'center' },
-  brandTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
-  brandSubtitle: { color: ACCENT_GREEN },
-  brandTagline: { color: '#94A3B8', fontSize: 9, fontWeight: '600', letterSpacing: 1.5, marginTop: -2 },
   menuContainer: {
     backgroundColor: PRIMARY_DARK,
     borderBottomWidth: 1,

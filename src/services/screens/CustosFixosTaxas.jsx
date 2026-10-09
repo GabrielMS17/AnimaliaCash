@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AppHeader from '../../components/AppHeader';
 
-export default function CustosETaxasScreen({ goToLogin }) {
+export default function CustosETaxasScreen() {
   const [tab, setTab] = useState('custos');
 
   // Dados fictícios de Custos Fixos
@@ -22,21 +23,7 @@ export default function CustosETaxasScreen({ goToLogin }) {
 
   return (
     <View style={styles.mainWrapper}>
-      {/* Header Institucional Padronizado */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerTextGroup}>
-          <Text style={styles.brandTitle}>
-            Animalia<Text style={styles.brandSubtitle}>Cash</Text>
-          </Text>
-          <Text style={styles.brandTagline}>SOLUÇÕES FINANCEIRAS</Text>
-        </View>
-
-        {goToLogin && (
-          <TouchableOpacity onPress={goToLogin} style={styles.logoutButton}>
-            <Text style={styles.logoutButtonText}>Sair</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <AppHeader />
 
       {/* Conteúdo Principal */}
       <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
@@ -138,31 +125,7 @@ const ACCENT_GREEN = '#00A86B';
 const BG_LIGHT = '#F8FAFC';
 
 const styles = StyleSheet.create({
-  mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
-  headerContainer: {
-    backgroundColor: PRIMARY_DARK,
-    paddingTop: 15,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTextGroup: { justifyContent: 'center' },
-  brandTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
-  brandSubtitle: { color: ACCENT_GREEN },
-  brandTagline: { color: '#94A3B8', fontSize: 9, fontWeight: '600', letterSpacing: 1.5, marginTop: -2 },
-  logoutButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  logoutButtonText: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
   container: { flex: 1 },
   contentPadding: { padding: 16, paddingBottom: 32 },
   pageHeader: { marginBottom: 16 },

@@ -1,86 +1,80 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import AnimaliaLegacyDataPanel from './AnimaliaLegacyDataPanel';
+import { Link } from 'expo-router';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAnimaliaData } from '../store/AnimaliaDataContext';
+import InsumosPage from './InsumosPage';
+import ProceduresPage from './ProceduresPage';
+import SettingsPage from './SettingsPage';
+import { AccentProvider, SECTIONS } from './ui';
+import AppHeader from './AppHeader';
 
-export default function AnimaliaDataRoute({ view, category, title, route, goToLogin }) {
+const SECTION_ORDER = ['banho_tosa', 'cirurgia', 'internacao', 'insumos', 'configuracoes'];
+
+/** Moldura dos módulos de custos: cabeçalho, navegação entre módulos e o conteúdo da seção. */
+export default function AnimaliaDataRoute({ section }) {
+  const current = SECTIONS[section];
+  const { loaded } = useAnimaliaData();
+
   return (
-    <View style={styles.mainWrapper}>
-      {/* Header Institucional Padronizado */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerTextGroup}>
-          <Text style={styles.brandTitle}>
-            Animalia<Text style={styles.brandSubtitle}>Cash</Text>
-          </Text>
-          <Text style={styles.brandTagline}>SOLUÇÕES FINANCEIRAS</Text>
-        </View>
+    <AccentProvider value={current}>
+      <View style={styles.mainWrapper}>
+        <AppHeader />
 
-        {goToLogin && (
-          <TouchableOpacity onPress={goToLogin} style={styles.logoutButton}>
-            <Text style={styles.logoutButtonText}>Sair</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.moduleNav} contentContainerStyle={styles.moduleNavContent}>
+          {SECTION_ORDER.map((id) => {
+            const item = SECTIONS[id];
+            const active = id === section;
+            return (
+              <Link key={id} href={item.href} asChild>
+                <TouchableOpacity style={StyleSheet.flatten([styles.moduleLink, active && { borderBottomColor: item.accent }])}>
+                  <Text style={[styles.moduleLinkText, active && { color: PRIMARY_DARK, fontWeight: '700' }]}>{item.label}</Text>
+                </TouchableOpacity>
+              </Link>
+            );
+          })}
+        </ScrollView>
 
-      {/* Conteúdo Principal */}
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
-        {title && (
-          <View style={styles.pageHeader}>
-            <Text style={styles.sectionTitle}>{title}</Text>
+        <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
+          <View style={styles.content}>
+            {!loaded && <ActivityIndicator size="large" color={current.accent} style={{ marginTop: 40 }} />}
+            {loaded && section === 'insumos' && <InsumosPage />}
+            {loaded && section === 'configuracoes' && <SettingsPage />}
+            {loaded && ['cirurgia', 'internacao', 'banho_tosa'].includes(section) && <ProceduresPage category={section} />}
           </View>
-        )}
 
-        <AnimaliaLegacyDataPanel
-          initialView={view}
-          initialProcedureCategory={category}
-          screenTitle={title}
-          currentRoute={route}
-        />
-
-        {/* Rodapé Corporativo */}
-        <View style={styles.footerContainer}>
-          <Text style={styles.footerText}>
-            © {new Date().getFullYear()} Animalia Cash — Soluções Financeiras
-          </Text>
-          <Text style={styles.footerSubtext}>Todos os direitos reservados.</Text>
-        </View>
-      </ScrollView>
-    </View>
+          <View style={styles.footerContainer}>
+            <Text style={styles.footerText}>
+              © {new Date().getFullYear()} Animalia Cash — Soluções Financeiras
+            </Text>
+            <Text style={styles.footerSubtext}>Todos os direitos reservados.</Text>
+          </View>
+        </ScrollView>
+      </View>
+    </AccentProvider>
   );
 }
 
 const PRIMARY_DARK = '#0C2D48';
-const ACCENT_GREEN = '#00A86B';
 const BG_LIGHT = '#F8FAFC';
 
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
-  headerContainer: {
-    backgroundColor: PRIMARY_DARK,
-    paddingTop: 15,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  moduleNav: {
+    flexGrow: 0,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  headerTextGroup: { justifyContent: 'center' },
-  brandTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
-  brandSubtitle: { color: ACCENT_GREEN },
-  brandTagline: { color: '#94A3B8', fontSize: 9, fontWeight: '600', letterSpacing: 1.5, marginTop: -2 },
-  logoutButton: {
-    paddingVertical: 6,
+  moduleNavContent: { paddingHorizontal: 12, gap: 4 },
+  moduleLink: {
+    paddingVertical: 12,
     paddingHorizontal: 12,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
   },
-  logoutButtonText: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  moduleLinkText: { fontSize: 14, color: '#64748B', fontWeight: '500' },
   container: { flex: 1 },
   contentPadding: { padding: 16, paddingBottom: 32 },
-  pageHeader: { marginBottom: 16 },
-  sectionTitle: { fontSize: 22, fontWeight: '700', color: PRIMARY_DARK },
+  content: { width: '100%', maxWidth: 1180, alignSelf: 'center' },
   footerContainer: {
     marginTop: 24,
     paddingVertical: 16,

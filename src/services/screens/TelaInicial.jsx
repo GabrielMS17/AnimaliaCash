@@ -1,30 +1,23 @@
+import { Link } from 'expo-router';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AppHeader from '../../components/AppHeader';
+import { useAnimaliaData } from '../../store/AnimaliaDataContext';
 
-export default function TelaInicial({ onLogout, onSelectModule }) {
-  const menuItems = [
-    { id: 'admin', titulo: 'Admin', descricao: 'Configurações de usuários e permissões do sistema' },
-    { id: 'templates', titulo: 'Templates', descricao: 'Fichas técnicas e padronização de procedimentos' },
-    { id: 'lancamentos', titulo: 'Lançamentos Diários', descricao: 'Registro de procedimentos, insumos e vendas' },
-    { id: 'relatorios', titulo: 'Relatórios', descricao: 'DRE, margens de lucro e análise financeira' },
-  ];
+const menuItems = [
+  { href: '/cirurgia', titulo: 'Cirurgias', descricao: 'Custo de cada cirurgia por peso, com insumos e terceirizados' },
+  { href: '/internacao', titulo: 'Internação', descricao: 'Custo das diárias de internação por porte do animal' },
+  { href: '/banho-tosa', titulo: 'Banho & Tosa', descricao: 'Custo de cada serviço de estética por porte' },
+  { href: '/insumos', titulo: 'Insumos', descricao: 'Materiais e medicamentos com custo unitário' },
+  { href: '/estoque', titulo: 'Estoque', descricao: 'Produtos, entrada de lotes e custo médio' },
+  { href: '/configuracoes', titulo: 'Configurações', descricao: 'Clínica, terceirizados, comissões e sincronização' },
+];
+
+export default function TelaInicial() {
+  const { settings } = useAnimaliaData();
 
   return (
     <View style={styles.mainWrapper}>
-      {/* Header Institucional Padronizado */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerTextGroup}>
-          <Text style={styles.brandTitle}>
-            Animalia<Text style={styles.brandSubtitle}>Cash</Text>
-          </Text>
-          <Text style={styles.brandTagline}>SOLUÇÕES FINANCEIRAS</Text>
-        </View>
-
-        {onLogout && (
-          <TouchableOpacity onPress={onLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutButtonText}>Sair</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <AppHeader />
 
       {/* Conteúdo Principal */}
       <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
@@ -33,7 +26,7 @@ export default function TelaInicial({ onLogout, onSelectModule }) {
 
           {/* Subtítulo Institucional / Nome da Clínica */}
           <Text style={styles.sectionSubtitle}>
-            Clínica Veterinária Vida Animal — Visão Geral dos Módulos
+            {settings.clinicName} — Visão Geral dos Módulos
           </Text>
         </View>
 
@@ -48,16 +41,13 @@ export default function TelaInicial({ onLogout, onSelectModule }) {
         {/* Grelha de Módulos */}
         <View style={styles.gridContainer}>
           {menuItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.menuCard}
-              activeOpacity={0.7}
-              onPress={() => onSelectModule && onSelectModule(item.id)}
-            >
-              <Text style={styles.menuTitle}>{item.titulo}</Text>
-              <Text style={styles.menuDescription}>{item.descricao}</Text>
-              <Text style={styles.actionBadge}>Acessar Módulo →</Text>
-            </TouchableOpacity>
+            <Link key={item.href} href={item.href} asChild>
+              <TouchableOpacity style={styles.menuCard} activeOpacity={0.7}>
+                <Text style={styles.menuTitle}>{item.titulo}</Text>
+                <Text style={styles.menuDescription}>{item.descricao}</Text>
+                <Text style={styles.actionBadge}>Acessar Módulo →</Text>
+              </TouchableOpacity>
+            </Link>
           ))}
         </View>
 
@@ -79,30 +69,6 @@ const BG_LIGHT = '#F8FAFC';
 
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
-  headerContainer: {
-    backgroundColor: PRIMARY_DARK,
-    paddingTop: 15,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTextGroup: { justifyContent: 'center' },
-  brandTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
-  brandSubtitle: { color: ACCENT_GREEN },
-  brandTagline: { color: '#94A3B8', fontSize: 9, fontWeight: '600', letterSpacing: 1.5, marginTop: -2 },
-  logoutButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  logoutButtonText: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   container: { flex: 1 },
   contentPadding: { padding: 16, paddingBottom: 32 },
   pageHeader: { marginBottom: 16 },

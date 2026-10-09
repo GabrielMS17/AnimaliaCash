@@ -61,7 +61,7 @@ export interface ExternalProfessionalCostDetail extends ExternalProfessionalAssi
   specialty: string;
 }
 
-export interface ExternalVeterinarian extends ExternalProfessional {}
+export type ExternalVeterinarian = ExternalProfessional;
 
 export type ProcedureCategory = 'banho_tosa' | 'cirurgia' | 'internacao';
 
