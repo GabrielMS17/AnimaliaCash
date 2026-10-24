@@ -46,6 +46,27 @@ O **Animalia Cash** é uma solução completa desenvolvida para controlar com pr
 
 ---
 
+## 🗂️ Onde está cada tela
+
+Cada endereço do app é um arquivo em `src/app/` (Expo Router). Ele apenas abre a tela correspondente em `src/services/screens/`:
+
+| Tela | Rota (`src/app/`) | Tela (`src/services/screens/`) | Conteúdo principal |
+| --- | --- | --- | --- |
+| Login | `Login.jsx` | `possivelLogin.jsx` | — |
+| Tela Inicial | `index.jsx` | `TelaInicial.jsx` | — |
+| Banho & Tosa | `banho-tosa.jsx` | `banho-tosa.jsx` | `components/ProceduresPage.jsx` |
+| Cirurgias | `cirurgia.jsx` | `cirurgia.jsx` | `components/ProceduresPage.jsx` |
+| Internação | `internacao.jsx` | `internacao.jsx` | `components/ProceduresPage.jsx` |
+| Insumos | `insumos.jsx` | `insumos.jsx` | `components/InsumosPage.jsx` |
+| Configurações | `configuracoes.jsx` | `configuracoes.jsx` | `components/SettingsPage.jsx` |
+| Estoque | `estoque.jsx` | `estoqueScreen.jsx` | — |
+| Templates | `templates.jsx` | `Templates.jsx` | — |
+| Custos e Taxas | `custos.jsx` | `CustosFixosTaxas.jsx` | — |
+
+Banho & Tosa, Cirurgias e Internação usam a mesma página (`ProceduresPage.jsx`), que muda só a categoria. Os formulários ficam em `components/ProcedureEditModal.jsx` (cadastro/edição) e `components/ProcedureDetailModal.jsx` (detalhamento do custo). O cabeçalho e a navegação entre esses módulos ficam em `components/AnimaliaDataRoute.jsx`; os dados e a sincronização com o Supabase, em `store/AnimaliaDataContext.jsx` e `services/supabaseSync.js`.
+
+---
+
 ## 🔐 Perfis de Acesso (RBAC)
 
 1. **Administrador:** Acesso completo a compras, estoque, custos fixos, relatórios financeiros e DRE.

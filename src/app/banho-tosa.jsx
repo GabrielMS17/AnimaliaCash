@@ -1,5 +1,5 @@
-import AnimaliaDataRoute from "../components/AnimaliaDataRoute";
+import BanhoTosaScreen from '../services/screens/banho-tosa';
 
 export default function BanhoTosaRoute() {
-  return <AnimaliaDataRoute section="banho_tosa" />;
+  return <BanhoTosaScreen />;
 }

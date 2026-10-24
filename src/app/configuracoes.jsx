@@ -1,5 +1,5 @@
-import AnimaliaDataRoute from "../components/AnimaliaDataRoute";
+import ConfiguracoesScreen from '../services/screens/configuracoes';
 
 export default function ConfiguracoesRoute() {
-  return <AnimaliaDataRoute section="configuracoes" />;
+  return <ConfiguracoesScreen />;
 }

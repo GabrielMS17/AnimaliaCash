@@ -1,5 +1,5 @@
-import AnimaliaDataRoute from "../components/AnimaliaDataRoute";
+import InsumosScreen from '../services/screens/insumos';
 
 export default function InsumosRoute() {
-  return <AnimaliaDataRoute section="insumos" />;
+  return <InsumosScreen />;
 }

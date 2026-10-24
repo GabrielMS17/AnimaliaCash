@@ -1,5 +1,5 @@
-import AnimaliaDataRoute from "../components/AnimaliaDataRoute";
+import InternacaoScreen from '../services/screens/internacao';
 
 export default function InternacaoRoute() {
-  return <AnimaliaDataRoute section="internacao" />;
+  return <InternacaoScreen />;
 }
