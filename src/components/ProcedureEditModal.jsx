@@ -152,11 +152,66 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
   };
 
   const handleSave = () => {
-    if (!finalName) {
+    // 1. Validação de Nome
+    const sanitizedName = finalName.trim();
+    if (!sanitizedName) {
       setTab('geral');
-      setErrorMsg('Informe o nome da cirurgia.');
+      setErrorMsg('Informe o nome do procedimento.');
       return;
     }
+    if (sanitizedName.length > 150) {
+      setTab('geral');
+      setErrorMsg('O nome do procedimento é muito longo (máximo de 150 caracteres).');
+      return;
+    }
+
+    // 2. Validação Numérica Defensiva (Pesos e Tempos)
+    const parsedWeight = Number(targetWeightKg);
+    if (isNaN(parsedWeight) || parsedWeight < 0) {
+      setTab('geral');
+      setErrorMsg('O peso do animal deve ser um valor válido.');
+      return;
+    }
+
+    const parsedDuration = Number(durationMinutes);
+    if (isNaN(parsedDuration) || parsedDuration <= 0) {
+      setTab('geral');
+      setErrorMsg('A duração do procedimento deve ser maior que zero.');
+      return;
+    }
+
+    // 3. Validação de Descrição
+    const sanitizedDescription = description.trim();
+    if (sanitizedDescription.length > 500) {
+      setTab('geral');
+      setErrorMsg('A descrição é muito longa (máximo de 500 caracteres).');
+      return;
+    }
+
+    // 4. Validação dos Itens / Insumos Adicionados
+    for (const [index, item] of items.entries()) {
+      const parsedQty = Number(item.quantity);
+      if (isNaN(parsedQty) || parsedQty <= 0) {
+        setTab('insumos');
+        setErrorMsg(`A quantidade do item #${index + 1} deve ser maior que zero.`);
+        return;
+      }
+    }
+
+    // 5. Validação de Comissão (se aplicável)
+    const parsedCommission = Number(vetCommissionValue);
+    if (isNaN(parsedCommission) || parsedCommission < 0) {
+      setTab('custos');
+      setErrorMsg('O valor da comissão deve ser válido.');
+      return;
+    }
+    if (vetCommissionType === 'percent' && parsedCommission > 100) {
+      setTab('custos');
+      setErrorMsg('O percentual de comissão não pode ultrapassar 100%.');
+      return;
+    }
+
+    // Se passou por todas as barreiras, envia o draft sanitizado
     onSave(draft);
   };
 
@@ -278,7 +333,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
               />
             )}
 
-            <Input placeholder="Filtrar" value={insumoSearch} onChangeText={setInsumoSearch} style={{ marginBottom: 8 }} />
+            <Input placeholder="Filtrar" value={insumoSearch} onChangeText={insumoSearch} style={{ marginBottom: 8 }} />
 
             <View style={styles.box}>
               {filteredCatalog.map((insumo) => {
@@ -489,9 +544,20 @@ function QuickCreateInsumo({ category, onCancel, onCreate }) {
   const [error, setError] = useState('');
 
   const handleCreate = () => {
-    if (!name.trim()) return setError('Informe o nome do insumo.');
-    if (cost <= 0) return setError('Informe um custo maior que zero.');
-    onCreate({ id: `ins_custom_${Date.now()}`, name: name.trim(), category, unit, costPerUnit: cost });
+    const sanitizedName = name.trim();
+    if (!sanitizedName) return setError('Informe o nome do insumo.');
+    if (sanitizedName.length > 100) return setError('O nome do insumo é muito longo.');
+
+    const parsedCost = Number(cost);
+    if (isNaN(parsedCost) || parsedCost <= 0) return setError('Informe um custo unitário válido maior que zero.');
+
+    onCreate({ 
+      id: `ins_custom_${Date.now()}`, 
+      name: sanitizedName, 
+      category, 
+      unit, 
+      costPerUnit: parsedCost 
+    });
   };
 
   return (
@@ -585,7 +651,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    paddingTop: 10,
+    paddingTtop: 10,
     marginTop: 6,
   },
   quickCreate: { gap: 10, padding: 12, borderRadius: 10, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, marginBottom: 8 },

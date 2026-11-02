@@ -72,13 +72,52 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
   const costPerUnit = directCost ? manualCost : packagePrice > 0 && packageSize > 0 ? packagePrice / packageSize : 0;
 
   const handleSave = () => {
-    if (!name.trim()) return setErrorMsg('Informe o nome do insumo.');
-    if (!directCost) {
-      if (packagePrice <= 0) return setErrorMsg(`Informe o preço pago ${isMasculine ? 'pelo' : 'pela'} ${packageLabel}.`);
-      if (packageSize <= 0) return setErrorMsg(`Informe a quantidade que vem ${inThe} ${packageLabel}.`);
-    } else if (manualCost <= 0) {
-      return setErrorMsg('O custo unitário deve ser maior que zero.');
+    // 1. Sanitização e Validação do Nome (Proteção contra strings vazias ou excessivas)
+    const sanitizedName = name.trim();
+    if (!sanitizedName) {
+      return setErrorMsg('Informe o nome do insumo.');
     }
+    if (sanitizedName.length > 100) {
+      return setErrorMsg('O nome do insumo é muito longo (máximo de 100 caracteres).');
+    }
+
+    // 2. Validação baseada no tipo de custo (Direto vs Embalagem)
+    if (!directCost) {
+      const parsedPrice = Number(packagePrice);
+      const parsedSize = Number(packageSize);
+
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        return setErrorMsg(`Informe um preço válido ${isMasculine ? 'pelo' : 'pela'} ${packageLabel}.`);
+      }
+      if (isNaN(parsedSize) || parsedSize <= 0) {
+        return setErrorMsg(`Informe uma quantidade válida que vem ${inThe} ${packageLabel}.`);
+      }
+    } else {
+      const parsedManualCost = Number(manualCost);
+      if (isNaN(parsedManualCost) || parsedManualCost <= 0) {
+        return setErrorMsg('O custo unitário direto deve ser maior que zero.');
+      }
+    }
+
+    // 3. Sanitização das Observações (Opcional, mas seguro)
+    const sanitizedNotes = notes.trim();
+    if (sanitizedNotes.length > 255) {
+      return setErrorMsg('As observações devem ter no máximo 255 caracteres.');
+    }
+
+    // 4. Envio seguro com dados validados
+    onSave({
+      id: insumo?.id ?? `ins_${Date.now()}`,
+      name: sanitizedName,
+      category,
+      unit,
+      costPerUnit,
+      packageType: directCost ? undefined : packageType,
+      packagePrice: directCost ? undefined : Number(packagePrice),
+      packageSize: directCost ? undefined : Number(packageSize),
+      notes: sanitizedNotes || undefined,
+    });
+  };
 
     onSave({
       id: insumo?.id ?? `ins_${Date.now()}`,
@@ -213,7 +252,7 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
       </Field>
     </AppModal>
   );
-}
+
 
 const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
