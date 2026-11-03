@@ -119,19 +119,6 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
     });
   };
 
-    onSave({
-      id: insumo?.id ?? `ins_${Date.now()}`,
-      name: name.trim(),
-      category,
-      unit,
-      costPerUnit,
-      packageType: directCost ? undefined : packageType,
-      packagePrice: directCost ? undefined : packagePrice,
-      packageSize: directCost ? undefined : packageSize,
-      notes: notes.trim() || undefined,
-    });
-  };
-
   const row = isWide ? styles.row : styles.column;
 
   return (
@@ -252,7 +239,7 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
       </Field>
     </AppModal>
   );
-
+}
 
 const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },

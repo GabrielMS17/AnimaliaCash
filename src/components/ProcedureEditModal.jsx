@@ -333,7 +333,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
               />
             )}
 
-            <Input placeholder="Filtrar" value={insumoSearch} onChangeText={insumoSearch} style={{ marginBottom: 8 }} />
+            <Input placeholder="Filtrar" value={insumoSearch} onChangeText={setInsumoSearch} style={{ marginBottom: 8 }} />
 
             <View style={styles.box}>
               {filteredCatalog.map((insumo) => {
@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    paddingTtop: 10,
+    paddingTop: 10,
     marginTop: 6,
   },
   quickCreate: { gap: 10, padding: 12, borderRadius: 10, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, marginBottom: 8 },
