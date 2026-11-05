@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Field, NumberInput, SectionHeader } from '../components/ui';
+import { useAuth } from '../store/AuthContext';
 import { useData } from '../store/DataContext';
 import { formatBRL } from '../utils/costCalculations';
 
@@ -11,6 +12,13 @@ export default function Configuracoes() {
   const [professionalSpecialty, setProfessionalSpecialty] = useState('');
   const [professionalCost, setProfessionalCost] = useState(0);
   const [editingId, setEditingId] = useState(null);
+
+  // Acompanha mudanças vindas de fora do formulário (ex: dados baixados do Supabase)
+  const [lastSettings, setLastSettings] = useState(settings);
+  if (settings !== lastSettings) {
+    setLastSettings(settings);
+    setForm(settings);
+  }
 
   const update = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -140,6 +148,8 @@ export default function Configuracoes() {
         </div>
       </form>
 
+      <SyncCard />
+
       <div className="card reset-card">
         <div>
           <strong>Restaurar dados de exemplo</strong>
@@ -155,6 +165,44 @@ export default function Configuracoes() {
           Restaurar
         </button>
       </div>
+    </div>
+  );
+}
+
+function SyncCard() {
+  const { user } = useAuth();
+  const { autoSync, setAutoSync, syncStatus, pushNow, pullNow } = useData();
+  const syncing = syncStatus.state === 'syncing';
+
+  return (
+    <div className="card form-group">
+      <div>
+        <h2>Sincronização com o Supabase</h2>
+        <p className="muted">Com login feito, os dados da clínica são enviados para o banco e atualizados com o que outros usuários gravarem.</p>
+      </div>
+      <p className="muted">Conectado como <strong>{user?.email}</strong></p>
+      <label className="checkbox">
+        <input type="checkbox" checked={autoSync} onChange={(event) => setAutoSync(event.target.checked)} />
+        Sincronizar automaticamente
+      </label>
+      <div className="inline">
+        <button type="button" className="btn btn-primary" disabled={syncing} onClick={pushNow}>
+          {syncing ? 'Sincronizando…' : 'Enviar dados agora'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={syncing}
+          onClick={() => {
+            if (window.confirm('Substituir os dados deste navegador pelos dados salvos no Supabase?')) pullNow();
+          }}
+        >
+          Baixar do Supabase
+        </button>
+      </div>
+      {syncStatus.state === 'ok' && <p className="saved-text" role="status">✓ {syncStatus.message} ({syncStatus.at.toLocaleTimeString('pt-BR')})</p>}
+      {syncStatus.state === 'empty' && <p className="warning" role="status">{syncStatus.message}</p>}
+      {syncStatus.state === 'error' && <p className="error-text" role="alert">{syncStatus.message}</p>}
     </div>
   );
 }

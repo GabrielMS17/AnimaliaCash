@@ -13,7 +13,8 @@ import Templates from './pages/Templates';
 import { useAuth } from './store/AuthContext';
 
 function RequireAuth() {
-  const { user } = useAuth();
+  const { user, sessionLoaded } = useAuth();
+  if (!sessionLoaded) return <div className="page-loading" role="status">Carregando…</div>;
   return user ? <Outlet /> : <Navigate to="/login" replace />;
 }
 

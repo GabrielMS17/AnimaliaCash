@@ -2,21 +2,33 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 
+const friendlyError = (error) =>
+  error.message === 'Invalid login credentials' ? 'E-mail/CRMV ou senha incorretos.' : error.message || 'Ocorreu um erro ao conectar.';
+
 export default function Login() {
-  const { user, login } = useAuth();
+  const { user, sessionLoaded, login } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
+  if (!sessionLoaded) return <div className="page-loading" role="status">Carregando…</div>;
   if (user) return <Navigate to="/" replace />;
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!identifier.trim() || !password) {
       setError('Por favor, preencha todos os campos.');
       return;
     }
-    login(identifier);
+    setError('');
+    setLoading(true);
+    try {
+      await login(identifier, password);
+    } catch (loginError) {
+      setError(friendlyError(loginError));
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,9 +69,7 @@ export default function Login() {
             />
           </label>
 
-          <button type="submit" className="btn btn-login">Entrar</button>
-
-          <p className="demo-note">Versão de demonstração: o acesso é simulado e os dados ficam só neste navegador. Não use uma senha real.</p>
+          <button type="submit" className="btn btn-login" disabled={loading}>{loading ? 'Entrando…' : 'Entrar'}</button>
         </form>
 
         <footer className="app-footer">

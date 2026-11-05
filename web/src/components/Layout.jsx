@@ -18,8 +18,8 @@ function UserMenu() {
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
 
-  const leave = () => {
-    logout();
+  const leave = async () => {
+    await logout();
     navigate('/login', { replace: true });
   };
 

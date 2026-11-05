@@ -432,7 +432,7 @@ td strong { color: var(--navy); }
 }
 .login-card h1 { margin-bottom: -10px; color: var(--navy); font-size: 20px; font-weight: 700; }
 .login-card .field { flex: none; }
-.demo-note { color: var(--faint); font-size: 11px; text-align: center; }
+.page-loading { display: flex; align-items: center; justify-content: center; min-height: 100%; color: var(--muted); }
 .login-main .app-footer { border-top: 0; padding: 0; }
 
 /* Telas estreitas */

@@ -1,28 +1,36 @@
-import { createContext, useContext, useState } from 'react';
-import { readStorage, writeStorage } from './storage';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../supabase';
 
-const KEY = 'animalia_web_user';
 const AuthContext = createContext(null);
 
-// Login simulado: esta versão ainda não usa banco de dados, então qualquer usuário preenchido entra.
-// A senha não é conferida nem guardada. Fica aqui o ponto de troca pelo login real (Supabase).
+// Login real pelo Supabase, com as mesmas contas do app em React Native.
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => readStorage(KEY));
+  const [session, setSession] = useState(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
 
-  const login = (identifier) => {
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionLoaded(true);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const login = async (identifier, password) => {
     const value = identifier.trim();
     const email = value.includes('@') ? value : `${value.replace(/\s+/g, '').toLowerCase()}@veterinaria.com`;
-    const next = { email };
-    writeStorage(KEY, next);
-    setUser(next);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   };
 
-  const logout = () => {
-    writeStorage(KEY, null);
-    setUser(null);
-  };
+  const logout = () => supabase.auth.signOut();
 
-  return <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user: session?.user ?? null, sessionLoaded, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
