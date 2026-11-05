@@ -1,21 +1,24 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { initialInsumos, initialProcedures } from '../data/initialData';
 import { normalizeProcedures, normalizeSettings, restoreMissingInsumos } from '../data/normalize';
-import { pullAll, pushAll } from '../services/supabaseSync';
+import { pullAll, pushChanges, stateKey } from '../services/supabaseSync';
 import { supabase } from '../supabase';
 
-// Os dados ficam salvos no dispositivo (localStorage na web, AsyncStorage no celular)
-// e, com o usuário logado, são enviados ao Supabase a cada alteração.
+// Os dados ficam salvos no dispositivo (localStorage na web, AsyncStorage no celular). Com o usuário
+// logado, cada alteração é enviada ao Supabase e o que foi gravado por outros é baixado: ao abrir,
+// ao voltar para o app e a cada minuto. A "base" é a última versão igual à do banco.
 const KEYS = {
   settings: 'animalia_settings_v1',
   insumos: 'animalia_insumos_v1',
   procedures: 'animalia_procedures_v1',
   autoSync: 'animalia_autosync_v1',
-  syncOwner: 'animalia_sync_owner_v1',
+  syncBase: 'animalia_sync_base_v2',
 };
 
 const AUTO_SYNC_DELAY_MS = 1500;
+const REFRESH_INTERVAL_MS = 60000;
 
 const AnimaliaDataContext = createContext(null);
 
@@ -50,15 +53,12 @@ export function AnimaliaDataProvider({ children }) {
   const [session, setSession] = useState(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [autoSync, setAutoSyncState] = useState(true);
-  // Conta cujos dados estão neste dispositivo. Enquanto não bater com a conta logada, nada é enviado
-  // automaticamente, para não sobrescrever no Supabase os dados que a conta já tem.
-  const [syncOwner, setSyncOwner] = useState(null);
   const [syncStatus, setSyncStatus] = useState({ state: 'idle' });
   // Conta alterações feitas pelo usuário; carregar ou baixar dados não dispara envio automático
   const [changeCount, setChangeCount] = useState(0);
   const dataRef = useRef(data);
   const syncQueue = useRef(Promise.resolve());
-  const reconcilingFor = useRef(null);
+  const baseRef = useRef(null);
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
@@ -67,16 +67,16 @@ export function AnimaliaDataProvider({ children }) {
 
   useEffect(() => {
     (async () => {
-      const [settings, insumos, procedures, savedAutoSync, savedOwner] = await Promise.all([
+      const [settings, insumos, procedures, savedAutoSync, savedBase] = await Promise.all([
         readJson(KEYS.settings),
         readJson(KEYS.insumos),
         readJson(KEYS.procedures),
         readJson(KEYS.autoSync),
-        readJson(KEYS.syncOwner),
+        readJson(KEYS.syncBase),
       ]);
       setData(buildState({ settings, insumos, procedures }));
       if (savedAutoSync !== null) setAutoSyncState(savedAutoSync);
-      setSyncOwner(savedOwner);
+      baseRef.current = savedBase;
       setLoaded(true);
     })();
 
@@ -102,26 +102,18 @@ export function AnimaliaDataProvider({ children }) {
     setChangeCount((count) => count + 1);
   }, []);
 
-  const rememberOwner = useCallback((ownerId) => {
-    setSyncOwner(ownerId);
-    AsyncStorage.setItem(KEYS.syncOwner, JSON.stringify(ownerId)).catch(() => {});
-  }, []);
-
-  const applyRemote = useCallback((remote) => {
-    setData(buildState({
-      settings: remote.settings ?? dataRef.current.settings,
-      insumos: remote.insumos,
-      procedures: remote.procedures,
-    }));
+  const rememberBase = useCallback((state) => {
+    baseRef.current = state;
+    AsyncStorage.setItem(KEYS.syncBase, JSON.stringify(state)).catch(() => {});
   }, []);
 
   /** Enfileira uma operação de sincronização: uma só começa depois que a anterior terminou. */
-  const enqueue = useCallback((task) => {
+  const enqueue = useCallback((task, { quiet = false } = {}) => {
     const run = syncQueue.current.then(async () => {
-      setSyncStatus({ state: 'syncing' });
+      if (!quiet) setSyncStatus({ state: 'syncing' });
       try {
-        const message = await task();
-        if (message) setSyncStatus({ state: 'ok', message, at: new Date() });
+        const status = await task();
+        if (status) setSyncStatus({ at: new Date(), ...status });
       } catch (error) {
         setSyncStatus({ state: 'error', message: error.message });
       }
@@ -130,47 +122,77 @@ export function AnimaliaDataProvider({ children }) {
     return run;
   }, []);
 
+  /** Envia o que mudou desde a última versão sincronizada. */
+  const pushPending = useCallback(async () => {
+    const local = dataRef.current;
+    if (baseRef.current && stateKey(baseRef.current) === stateKey(local)) return false;
+    await pushChanges(baseRef.current, local);
+    rememberBase(local);
+    return true;
+  }, [rememberBase]);
+
+  /** Traz os dados do banco para o dispositivo, sem atropelar uma edição feita durante a consulta. */
+  const applyRemote = useCallback((remote, localBeforePull) => {
+    const state = buildState({
+      settings: remote.settings ?? localBeforePull.settings,
+      insumos: remote.insumos,
+      procedures: remote.procedures,
+    });
+    if (dataRef.current !== localBeforePull) return false;
+    rememberBase(state);
+    if (stateKey(state) !== stateKey(localBeforePull)) {
+      dataRef.current = state;
+      setData(state);
+    }
+    return true;
+  }, [rememberBase]);
+
   const pushNow = useCallback(() => enqueue(async () => {
-    const ownerId = await pushAll(dataRef.current);
-    rememberOwner(ownerId);
-    return 'Dados enviados ao Supabase.';
-  }), [enqueue, rememberOwner]);
+    await pushPending();
+    return { state: 'ok', message: 'Dados enviados ao Supabase.' };
+  }), [enqueue, pushPending]);
 
   const pullNow = useCallback(() => enqueue(async () => {
+    const local = dataRef.current;
     const remote = await pullAll();
-    if (!remote) throw new Error('Ainda não há dados desta conta no Supabase. Envie os dados primeiro.');
-    applyRemote(remote);
-    rememberOwner(remote.ownerId);
-    return 'Dados baixados do Supabase.';
-  }), [enqueue, applyRemote, rememberOwner]);
+    if (!remote) throw new Error('Ainda não há dados da clínica no Supabase. Envie os dados primeiro.');
+    applyRemote(remote, local);
+    return { state: 'ok', message: 'Dados baixados do Supabase.' };
+  }), [enqueue, applyRemote]);
 
-  // Ao entrar com uma conta diferente da última sincronizada: carrega os dados que ela já tem no
-  // Supabase; se ela ainda não tiver nada, faz o primeiro envio com os dados deste dispositivo.
+  // Envia o que estiver pendente e busca o que foi gravado por outros. Com o banco vazio, nada sobe
+  // sozinho: o primeiro envio é manual, para dados de exemplo não irem para o banco por engano.
+  const refresh = useCallback(() => enqueue(async () => {
+    if (baseRef.current) await pushPending();
+    const local = dataRef.current;
+    const remote = await pullAll();
+    if (!remote) {
+      return baseRef.current
+        ? null
+        : { state: 'empty', message: 'O banco ainda não tem dados da clínica. Use "Enviar dados agora" para fazer o primeiro envio.' };
+    }
+    applyRemote(remote, local);
+    return { state: 'ok', message: 'Dados atualizados com o Supabase.' };
+  }, { quiet: true }), [enqueue, pushPending, applyRemote]);
+
   useEffect(() => {
-    if (!loaded || !userId || userId === syncOwner || reconcilingFor.current === userId) return;
-    reconcilingFor.current = userId;
-    enqueue(async () => {
-      try {
-        const remote = await pullAll();
-        if (remote) {
-          applyRemote(remote);
-          rememberOwner(remote.ownerId);
-          return 'Dados desta conta carregados do Supabase.';
-        }
-        rememberOwner(await pushAll(dataRef.current));
-        return 'Primeiro envio desta conta para o Supabase concluído.';
-      } catch (error) {
-        reconcilingFor.current = null; // permite tentar de novo no próximo login
-        throw error;
-      }
+    if (!loaded || !userId || !autoSync) return;
+    refresh();
+    const interval = setInterval(refresh, REFRESH_INTERVAL_MS);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh();
     });
-  }, [loaded, userId, syncOwner, enqueue, applyRemote, rememberOwner]);
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [loaded, userId, autoSync, refresh]);
 
   useEffect(() => {
-    if (changeCount === 0 || !autoSync || !userId || userId !== syncOwner) return;
+    if (changeCount === 0 || !autoSync || !userId || !baseRef.current) return;
     const timer = setTimeout(pushNow, AUTO_SYNC_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [changeCount, autoSync, userId, syncOwner, pushNow]);
+  }, [changeCount, autoSync, userId, pushNow]);
 
   const value = useMemo(() => {
     const { settings, insumos, procedures } = data;

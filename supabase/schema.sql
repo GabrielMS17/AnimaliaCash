@@ -1,18 +1,19 @@
 -- =====================================================================
 -- Animalia Cash — módulo de custos (insumos, procedimentos e configurações)
 -- Rodar no Supabase: SQL Editor > New query > colar este arquivo > Run.
--- Pode ser executado mais de uma vez (idempotente).
+-- Pode ser executado mais de uma vez: só cria o que ainda não existe.
+-- Não altera nem depende de tabelas existentes, como public.profiles.
 --
--- Cada linha pertence a um usuário (owner_id = auth.uid()). As políticas de RLS
--- garantem que cada usuário só lê e grava os próprios dados.
+-- Versão para UMA clínica: todos os usuários logados compartilham os mesmos dados.
+-- Quem não está logado não acessa nada. Permissões por papel ficam para depois.
 -- Os ids são texto porque o app gera ids próprios (ex: 'cir_luva_esteril', 'proc_1727...').
 -- =====================================================================
 
--- ---------------------------------------------------------------------
--- Configurações da clínica (1 linha por usuário)
--- ---------------------------------------------------------------------
+begin;
+
+-- Configurações da clínica (sempre uma única linha: id = true)
 create table if not exists public.clinic_settings (
-  owner_id uuid primary key default auth.uid() references auth.users (id) on delete cascade,
+  id boolean primary key default true check (id),
   project_name text,
   clinic_name text not null,
   logo_url text,
@@ -25,25 +26,18 @@ create table if not exists public.clinic_settings (
   updated_at timestamptz not null default now()
 );
 
--- ---------------------------------------------------------------------
 -- Profissionais terceirizados (anestesistas, especialistas)
--- ---------------------------------------------------------------------
 create table if not exists public.external_professionals (
-  owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  id text not null,
+  id text primary key,
   name text not null,
   specialty text not null,
   default_cost numeric(12, 2) not null default 0 check (default_cost >= 0),
-  primary key (owner_id, id)
+  updated_at timestamptz not null default now()
 );
 
--- ---------------------------------------------------------------------
--- Insumos: custo unitário calculado a partir da embalagem (preço ÷ quantidade)
--- ou informado diretamente (ex: kWh, diária)
--- ---------------------------------------------------------------------
+-- Insumos: custo unitário calculado pela embalagem (preço ÷ quantidade) ou informado direto (ex: kWh, diária)
 create table if not exists public.insumos (
-  owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  id text not null,
+  id text primary key,
   name text not null,
   category text not null check (category in ('banho_tosa', 'cirurgia', 'internacao', 'geral')),
   unit text not null check (unit in ('un', 'ml', 'l', 'g', 'kg', 'par', 'm', 'kwh', 'min', 'dose', 'diaria', 'hora')),
@@ -52,63 +46,50 @@ create table if not exists public.insumos (
   package_price numeric(12, 2) check (package_price >= 0),
   package_size numeric(14, 3) check (package_size > 0),
   notes text,
-  updated_at timestamptz not null default now(),
-  primary key (owner_id, id)
+  updated_at timestamptz not null default now()
 );
 
--- ---------------------------------------------------------------------
 -- Procedimentos: cirurgias, diárias de internação e banho & tosa
--- ---------------------------------------------------------------------
 create table if not exists public.procedures (
-  owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  id text not null,
+  id text primary key,
   name text not null,
   category text not null check (category in ('banho_tosa', 'cirurgia', 'internacao')),
   description text not null default '',
   target_weight_kg numeric(6, 2),
   duration_minutes integer not null check (duration_minutes > 0),  -- na internação, o período total (1440 = 1 diária)
-  labor_minutes integer check (labor_minutes >= 0),                 -- tempo de equipe que entra no custo operacional
-  anesthesia_cost numeric(12, 2),                                   -- legado (hoje o anestesista é um profissional terceirizado)
+  labor_minutes integer check (labor_minutes >= 0),                -- tempo de equipe que entra no custo operacional
+  anesthesia_cost numeric(12, 2),                                  -- legado (hoje o anestesista é um terceirizado)
   fixed_overhead_cost numeric(12, 2),
   vet_commission_type text check (vet_commission_type in ('percent', 'fixed')),
   vet_commission_value numeric(12, 2),
   vet_commission_role text,
-  suggested_price numeric(12, 2),                                   -- preço cobrado do tutor
+  suggested_price numeric(12, 2),                                  -- preço cobrado do tutor
   target_margin_percent numeric(5, 2),
-  updated_at timestamptz not null default now(),
-  primary key (owner_id, id)
+  updated_at timestamptz not null default now()
 );
 
 -- Insumos usados em cada procedimento (ficha técnica)
 create table if not exists public.procedure_items (
-  owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  procedure_id text not null,
+  procedure_id text not null references public.procedures (id) on delete cascade,
   position integer not null,
-  insumo_id text not null,
+  insumo_id text not null references public.insumos (id) on delete cascade,
   quantity numeric(14, 3) not null check (quantity >= 0),
   notes text,
-  primary key (owner_id, procedure_id, position),
-  foreign key (owner_id, procedure_id) references public.procedures (owner_id, id) on delete cascade,
-  foreign key (owner_id, insumo_id) references public.insumos (owner_id, id) on delete cascade
+  primary key (procedure_id, position)
 );
 
--- Profissionais terceirizados escalados em cada procedimento (com o custo naquele procedimento)
+-- Terceirizados de cada procedimento, com o custo naquele procedimento
 create table if not exists public.procedure_professionals (
-  owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  procedure_id text not null,
-  professional_id text not null,
+  procedure_id text not null references public.procedures (id) on delete cascade,
+  professional_id text not null references public.external_professionals (id) on delete cascade,
   cost numeric(12, 2) not null default 0 check (cost >= 0),
-  primary key (owner_id, procedure_id, professional_id),
-  foreign key (owner_id, procedure_id) references public.procedures (owner_id, id) on delete cascade,
-  foreign key (owner_id, professional_id) references public.external_professionals (owner_id, id) on delete cascade
+  primary key (procedure_id, professional_id)
 );
 
-create index if not exists procedure_items_insumo_idx on public.procedure_items (owner_id, insumo_id);
-create index if not exists procedure_professionals_professional_idx on public.procedure_professionals (owner_id, professional_id);
+create index if not exists procedure_items_insumo_idx on public.procedure_items (insumo_id);
+create index if not exists procedure_professionals_professional_idx on public.procedure_professionals (professional_id);
 
--- ---------------------------------------------------------------------
--- Row Level Security: cada usuário acessa apenas as próprias linhas
--- ---------------------------------------------------------------------
+-- Row Level Security: só usuários logados acessam
 alter table public.clinic_settings enable row level security;
 alter table public.external_professionals enable row level security;
 alter table public.insumos enable row level security;
@@ -116,7 +97,7 @@ alter table public.procedures enable row level security;
 alter table public.procedure_items enable row level security;
 alter table public.procedure_professionals enable row level security;
 
--- Cria a política só se ela ainda não existir (permite rodar o script de novo sem apagar nada)
+-- Cria a política só se ela ainda não existir
 do $$
 declare
   t text;
@@ -127,11 +108,11 @@ begin
   ] loop
     if not exists (
       select 1 from pg_policies
-      where schemaname = 'public' and tablename = t and policyname = 'Dono acessa os próprios dados'
+      where schemaname = 'public' and tablename = t and policyname = 'Usuarios logados acessam a clinica'
     ) then
       execute format(
-        'create policy "Dono acessa os próprios dados" on public.%I for all to authenticated '
-        'using (owner_id = auth.uid()) with check (owner_id = auth.uid())',
+        'create policy "Usuarios logados acessam a clinica" on public.%I for all to authenticated '
+        'using (true) with check (true)',
         t
       );
     end if;
@@ -146,3 +127,5 @@ grant select, insert, update, delete on
   public.procedure_items,
   public.procedure_professionals
 to authenticated;
+
+commit;
