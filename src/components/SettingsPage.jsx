@@ -2,7 +2,6 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
-import { isUsingDefaultSupabase } from '../supabase';
 import { formatBRL } from '../utils/costCalculations';
 import { Button, Checkbox, COLORS, confirmAction, Field, Input, NumberInput, SectionHeader, useIsWide } from './ui';
 
@@ -177,14 +176,8 @@ function SyncCard() {
     <View style={styles.card}>
       <Section
         title="Sincronização com o Supabase"
-        description="Os dados ficam salvos neste navegador/dispositivo. Com login feito, também são enviados para o banco no Supabase."
+        description="Com login feito, os dados da clínica são enviados para o banco e atualizados com o que outros usuários gravarem."
       >
-        {isUsingDefaultSupabase && (
-          <Text style={styles.warning}>
-            Usando o projeto Supabase padrão do código. Para o ambiente de teste, configure o arquivo .env.local (veja supabase/README.md).
-          </Text>
-        )}
-
         {session ? (
           <Text style={styles.muted}>Conectado como <Text style={styles.itemTitle}>{session.user.email}</Text></Text>
         ) : (
@@ -194,7 +187,7 @@ function SyncCard() {
           </Text>
         )}
 
-        <Checkbox checked={autoSync} onChange={setAutoSync} label="Enviar automaticamente a cada alteração" />
+        <Checkbox checked={autoSync} onChange={setAutoSync} label="Sincronizar automaticamente" />
 
         <View style={styles.inline}>
           <Button label={syncing ? 'Sincronizando…' : 'Enviar dados agora'} disabled={!session || syncing} onPress={pushNow} />
@@ -211,6 +204,7 @@ function SyncCard() {
         {syncStatus.state === 'ok' && (
           <Text style={styles.savedText}>✓ {syncStatus.message} ({syncStatus.at.toLocaleTimeString('pt-BR')})</Text>
         )}
+        {syncStatus.state === 'empty' && <Text style={styles.warning}>{syncStatus.message}</Text>}
         {syncStatus.state === 'error' && <Text style={styles.errorText}>{syncStatus.message}</Text>}
       </Section>
     </View>

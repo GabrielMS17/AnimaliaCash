@@ -6,23 +6,26 @@ Este diretório contém a estrutura do banco usada pelas telas **Cirurgias**, **
 
 ## Como os dados funcionam no app
 
-1. Tudo o que você cadastra fica salvo **no próprio navegador/dispositivo** (funciona mesmo sem internet e sem login).
-2. Ao **entrar com uma conta** neste dispositivo pela primeira vez, o app baixa os dados que essa conta já tem no Supabase (se ela ainda não tiver nada, envia os dados do dispositivo). Assim, abrir o app em outro navegador não sobrescreve o que já está no banco.
-3. A partir daí, cada alteração é enviada automaticamente para o Supabase (dá para desligar em *Configurações › Sincronização*).
-4. Em *Configurações › Sincronização* também há os botões **Enviar dados agora** e **Baixar do Supabase** (útil para abrir os mesmos dados em outro aparelho).
+Esta versão atende **uma clínica**: todos os usuários logados veem e alteram os mesmos dados.
+
+1. Tudo o que você cadastra fica salvo também no navegador/dispositivo.
+2. Com login feito, cada alteração é enviada ao banco, somente o que mudou.
+3. O app busca o que outros gravaram ao abrir, ao voltar para ele e a cada minuto.
+4. Com o banco vazio, nada sobe sozinho: o primeiro envio é feito em *Configurações › Enviar dados agora*.
+5. Se duas pessoas alterarem o mesmo registro, vale a última gravação.
 
 ## Tabelas
 
 | Tabela | Conteúdo |
 | --- | --- |
-| `clinic_settings` | Nome da clínica, custo operacional por hora, comissões padrão (1 linha por usuário) |
+| `clinic_settings` | Nome da clínica, custo operacional por hora, comissões padrão (sempre 1 linha) |
 | `external_professionals` | Anestesistas e especialistas terceirizados com custo padrão |
 | `insumos` | Materiais e medicamentos: categoria, unidade, embalagem e custo unitário |
 | `procedures` | Cirurgias, diárias de internação e banho & tosa |
 | `procedure_items` | Insumos e quantidades usados em cada procedimento (ficha técnica) |
 | `procedure_professionals` | Profissionais terceirizados de cada procedimento e o custo naquele procedimento |
 
-Todas as tabelas têm `owner_id` (o usuário dono dos dados) e RLS ativo: cada usuário só enxerga e altera as próprias linhas.
+Todas as tabelas têm RLS ativo: só usuários logados acessam, e todos com as mesmas permissões. Permissões por papel (ex: usando `profiles.role`) ficam para uma próxima etapa.
 
 ## Criando o ambiente de teste (na sua conta)
 
@@ -43,5 +46,5 @@ Todas as tabelas têm `owner_id` (o usuário dono dos dados) e RLS ativo: cada u
 
 O responsável pelo banco principal só precisa executar `schema.sql` lá. Pontos a avaliar na integração:
 
-- Hoje os dados são separados **por usuário** (`owner_id`). Se a clínica tiver vários usuários compartilhando o mesmo catálogo, troque `owner_id` por um `clinic_id` e ajuste as políticas de RLS para checar se o usuário pertence à clínica (ex: tabela `profiles` com `clinic_id` e `role`).
+- O script não altera tabelas existentes, como `profiles`.
 - As tabelas `products` / `product_batches` descritas em `database_schema.md` (estoque por lote) são outro módulo; `insumos` aqui guarda o **custo de referência** usado nos cálculos de custo dos procedimentos.
