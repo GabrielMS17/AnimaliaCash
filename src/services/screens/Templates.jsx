@@ -1,48 +1,88 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import AppHeader from '../../components/AppHeader';
+import { supabase } from '../../supabase';
 
 export default function TemplatesScreen() {
   const [tab, setTab] = useState('todos');
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Dados fictícios de Templates de Fichas Técnicas
-  const templates = [
-    {
-      id: '1',
-      nome: 'Banho Porte P',
-      categoria: 'Estética',
-      tempoEstimado: '45 min',
-      insumosCount: 4,
-    },
-    {
-      id: '2',
-      nome: 'Castração Felina',
-      categoria: 'Cirúrgico',
-      tempoEstimado: '60 min',
-      insumosCount: 5,
-    },
-    {
-      id: '3',
-      nome: 'Banho e Tosa Higiênica Porte M',
-      categoria: 'Estética',
-      tempoEstimado: '60 min',
-      insumosCount: 4,
-    },
-    {
-      id: '4',
-      nome: 'Profilaxia Dental',
-      categoria: 'Clínico',
-      tempoEstimado: '90 min',
-      insumosCount: 4,
-    },
-    {
-      id: '5',
-      nome: 'Vacinação Múltipla (V10)',
-      categoria: 'Clínico',
-      tempoEstimado: '15 min',
-      insumosCount: 3,
-    },
-  ];
+  // Estados do Modal de Cadastro
+  const [modalVisible, setModalVisible] = useState(false);
+  const [nomeInput, setNomeInput] = useState('');
+  const [categoriaInput, setCategoriaInput] = useState('Estética'); // Valor padrão
+  const [tempoInput, setTempoInput] = useState('');
+  const [insumosInput, setInsumosInput] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // Opções pré-definidas de categorias para os chips do modal
+  const categoriasOpcoes = ['Estética', 'Cirúrgico', 'Clínico'];
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const fetchTemplates = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('templates_procedimentos')
+        .select('*')
+        .order('nome', { ascending: true });
+
+      if (error) throw error;
+      setTemplates(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar templates:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Função para salvar novo template no Supabase
+  const handleSaveTemplate = async () => {
+    if (!nomeInput || !tempoInput || !insumosInput) {
+      alert('Por favor, preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from('templates_procedimentos').insert([
+        {
+          nome: nomeInput,
+          categoria: categoriaInput,
+          tempo_estimado: tempoInput.includes('min') ? tempoInput : `${tempoInput} min`,
+          insumos_count: parseInt(insumosInput, 10) || 0,
+        },
+      ]);
+
+      if (error) throw error;
+
+      // Limpa os campos, fecha o modal e recarrega os dados
+      setNomeInput('');
+      setCategoriaInput('Estética');
+      setTempoInput('');
+      setInsumosInput('');
+      setModalVisible(false);
+      fetchTemplates();
+    } catch (error) {
+      console.error('Erro ao salvar template:', error);
+      alert(`Erro ao salvar: ${error.message || 'Erro desconhecido'}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Filtragem por Categoria
   const templatesFiltrados = templates.filter((item) => {
@@ -76,8 +116,12 @@ export default function TemplatesScreen() {
           </View>
         </View>
 
-        {/* Botão de Ação Primário */}
-        <TouchableOpacity style={styles.buttonPrimary}>
+        {/* Botão de Ação Primário com Abertura de Modal */}
+        <TouchableOpacity
+          style={styles.buttonPrimary}
+          activeOpacity={0.8}
+          onPress={() => setModalVisible(true)}
+        >
           <Text style={styles.buttonText}>+ Criar Novo Template</Text>
         </TouchableOpacity>
 
@@ -120,29 +164,136 @@ export default function TemplatesScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Tabela de Templates */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Procedimentos Padronizados</Text>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.columnHeader, { flex: 2 }]}>Nome do Procedimento</Text>
-            <Text style={[styles.columnHeader, { flex: 1.2 }]}>Categoria</Text>
-            <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>Insumos</Text>
-            <Text style={[styles.columnHeader, { flex: 1, textAlign: 'right' }]}>Tempo Est.</Text>
+        {/* Tabela de Templates / Conteúdo */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={ACCENT_GREEN} />
+            <Text style={styles.loadingText}>Carregando templates...</Text>
           </View>
-
-          {templatesFiltrados.map((item) => (
-            <View key={item.id} style={styles.tableRow}>
-              <Text style={[styles.cellTextBold, { flex: 2 }]}>{item.nome}</Text>
-              <Text style={[styles.cellText, { flex: 1.2 }]}>{item.categoria}</Text>
-              <Text style={[styles.cellText, { flex: 1, textAlign: 'center' }]}>
-                {item.insumosCount} itens
-              </Text>
-              <Text style={[styles.cellBadge, { flex: 1, textAlign: 'right' }]}>
-                {item.tempoEstimado}
-              </Text>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Procedimentos Padronizados</Text>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.columnHeader, { flex: 2 }]}>Nome do Procedimento</Text>
+              <Text style={[styles.columnHeader, { flex: 1.2 }]}>Categoria</Text>
+              <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>Insumos</Text>
+              <Text style={[styles.columnHeader, { flex: 1, textAlign: 'right' }]}>Tempo Est.</Text>
             </View>
-          ))}
-        </View>
+
+            {templatesFiltrados.length === 0 ? (
+              <Text style={styles.emptyText}>Nenhum template encontrado nesta categoria.</Text>
+            ) : (
+              templatesFiltrados.map((item) => (
+                <View key={item.id} style={styles.tableRow}>
+                  <Text style={[styles.cellTextBold, { flex: 2 }]}>{item.nome}</Text>
+                  <Text style={[styles.cellText, { flex: 1.2 }]}>{item.categoria}</Text>
+                  <Text style={[styles.cellText, { flex: 1, textAlign: 'center' }]}>
+                    {item.insumos_count} itens
+                  </Text>
+                  <Text style={[styles.cellBadge, { flex: 1, textAlign: 'right' }]}>
+                    {item.tempo_estimado}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {/* Modal para Criar Novo Template */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Criar Novo Template de Procedimento</Text>
+
+              {/* Nome do Procedimento */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Nome do Procedimento</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: Consulta Cardiológica, Castração..."
+                  placeholderTextColor="#94A3B8"
+                  value={nomeInput}
+                  onChangeText={setNomeInput}
+                  autoFocus={true}
+                />
+              </View>
+
+              {/* Categoria com Chips Pré-definidos */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Categoria</Text>
+                <View style={styles.chipContainer}>
+                  {categoriasOpcoes.map((cat) => {
+                    const selecionado = categoriaInput === cat;
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[styles.chipButton, selecionado && styles.chipButtonActive]}
+                        onPress={() => setCategoriaInput(cat)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.chipText, selecionado && styles.chipTextActive]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Tempo Estimado */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Tempo Estimado</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: 45 min"
+                  placeholderTextColor="#94A3B8"
+                  value={tempoInput}
+                  onChangeText={setTempoInput}
+                />
+              </View>
+
+              {/* Quantidade de Insumos */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Quantidade de Insumos Vinculados</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: 4"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="numeric"
+                  value={insumosInput}
+                  onChangeText={setInsumosInput}
+                />
+              </View>
+
+              {/* Botões do Modal */}
+              <View style={styles.modalButtonsRow}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonCancel]}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.modalButtonCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonSave]}
+                  onPress={handleSaveTemplate}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Text style={styles.modalButtonSaveText}>Salvar</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Rodapé Corporativo */}
         <View style={styles.footerContainer}>
@@ -161,7 +312,7 @@ const ACCENT_GREEN = '#00A86B';
 const BG_LIGHT = '#F8FAFC';
 
 const styles = StyleSheet.create({
-  mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
+  mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
   container: { flex: 1 },
   contentPadding: { padding: 16, paddingBottom: 32 },
   pageHeader: { marginBottom: 16 },
@@ -254,6 +405,84 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: ACCENT_GREEN,
   },
+  loadingContainer: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#94A3B8',
+    paddingVertical: 20,
+    fontSize: 13,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 16 },
+  inputContainer: { marginBottom: 14 },
+  inputLabel: { fontSize: 12, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 6 },
+  input: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: PRIMARY_DARK,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  chipButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  chipButtonActive: {
+    backgroundColor: PRIMARY_DARK,
+    borderColor: PRIMARY_DARK,
+  },
+  chipText: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  modalButtonsRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  modalButton: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  modalButtonCancel: { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#CBD5E1' },
+  modalButtonCancelText: { color: '#475569', fontWeight: '700', fontSize: 13 },
+  modalButtonSave: { backgroundColor: ACCENT_GREEN },
+  modalButtonSaveText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
   footerContainer: {
     marginTop: 24,
     paddingVertical: 16,
