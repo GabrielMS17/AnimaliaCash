@@ -4,20 +4,25 @@ import { useAuth } from '../store/AuthContext';
 import { useData } from '../store/DataContext';
 import { formatBRL } from '../utils/costCalculations';
 
+const withoutProfessionals = ({ externalProfessionals, ...rest }) => rest;
+const sameFields = (a, b) => JSON.stringify(withoutProfessionals(a)) === JSON.stringify(withoutProfessionals(b));
+
 export default function Configuracoes() {
-  const { settings, saveSettings, resetData } = useData();
+  const { settings, procedures, saveSettings, saveProfessional, deleteProfessional, resetData } = useData();
   const [form, setForm] = useState(settings);
   const [saved, setSaved] = useState(false);
   const [professionalName, setProfessionalName] = useState('');
   const [professionalSpecialty, setProfessionalSpecialty] = useState('');
   const [professionalCost, setProfessionalCost] = useState(0);
   const [editingId, setEditingId] = useState(null);
+  const [professionalMessage, setProfessionalMessage] = useState('');
 
   // Acompanha mudanças vindas de fora do formulário (ex: dados baixados do Supabase)
   const [lastSettings, setLastSettings] = useState(settings);
   if (settings !== lastSettings) {
     setLastSettings(settings);
-    setForm(settings);
+    // Mantém o que está sendo digitado se a mudança foi só nos profissionais, que são gravados na hora
+    if (sameFields(form, lastSettings)) setForm(settings);
   }
 
   const update = (key, value) => {
@@ -32,7 +37,7 @@ export default function Configuracoes() {
     setProfessionalCost(0);
   };
 
-  const saveProfessional = () => {
+  const submitProfessional = () => {
     const name = professionalName.trim();
     const specialty = professionalSpecialty.trim();
     if (!name || !specialty) return;
@@ -43,15 +48,24 @@ export default function Configuracoes() {
       specialty,
       defaultCost: Math.max(0, professionalCost),
     };
-    const professionals = form.externalProfessionals ?? [];
-    update(
-      'externalProfessionals',
-      editingId ? professionals.map((item) => (item.id === editingId ? professional : item)) : [...professionals, professional],
-    );
+    saveProfessional(professional);
     clearProfessional();
+    setProfessionalMessage(editingId ? '✓ Profissional atualizado.' : '✓ Profissional cadastrado.');
   };
 
-  const isDirty = JSON.stringify(form) !== JSON.stringify(settings);
+  const removeProfessional = (professional) => {
+    const count = procedures.filter((procedure) =>
+      (procedure.externalProfessionalAssignments ?? []).some((item) => item.professionalId === professional.id)).length;
+    const message = count > 0
+      ? `${professional.name} está em ${count} procedimento(s) e será removido deles, reduzindo o custo. Deseja excluir?`
+      : `Deseja excluir ${professional.name}?`;
+    if (!window.confirm(message)) return;
+    deleteProfessional(professional.id);
+    if (editingId === professional.id) clearProfessional();
+    setProfessionalMessage('✓ Profissional excluído.');
+  };
+
+  const isDirty = !sameFields(form, settings);
 
   return (
     <div className="settings">
@@ -61,9 +75,9 @@ export default function Configuracoes() {
         className="card settings-card"
         onSubmit={(event) => {
           event.preventDefault();
-          const next = { ...form, clinicName: form.clinicName.trim() };
-          saveSettings(next);
-          setForm(next);
+          const clinicName = form.clinicName.trim();
+          saveSettings({ ...settings, ...withoutProfessionals(form), clinicName });
+          setForm((prev) => ({ ...prev, clinicName }));
           setSaved(true);
         }}
       >
@@ -77,7 +91,7 @@ export default function Configuracoes() {
         <section>
           <h2>Profissionais terceirizados</h2>
           <p className="muted">Cadastre anestesistas, especialistas e seus valores padrão por procedimento.</p>
-          {(form.externalProfessionals ?? []).map((professional) => (
+          {(settings.externalProfessionals ?? []).map((professional) => (
             <div key={professional.id} className="professional-row">
               <div className="grow">
                 <strong>{professional.name}</strong>
@@ -98,10 +112,7 @@ export default function Configuracoes() {
               <button
                 type="button"
                 className="btn btn-danger btn-small"
-                onClick={() => {
-                  update('externalProfessionals', (form.externalProfessionals ?? []).filter((item) => item.id !== professional.id));
-                  if (editingId === professional.id) clearProfessional();
-                }}
+                onClick={() => removeProfessional(professional)}
               >
                 Excluir
               </button>
@@ -119,16 +130,17 @@ export default function Configuracoes() {
             </Field>
           </div>
           <div className="inline">
-            <button type="button" className="btn btn-secondary" disabled={!professionalName.trim() || !professionalSpecialty.trim()} onClick={saveProfessional}>
+            <button type="button" className="btn btn-secondary" disabled={!professionalName.trim() || !professionalSpecialty.trim()} onClick={submitProfessional}>
               {editingId ? 'Salvar profissional' : '+ Adicionar profissional'}
             </button>
             {editingId && <button type="button" className="btn btn-ghost" onClick={clearProfessional}>Cancelar edição</button>}
+            {professionalMessage && <span className="saved-text" role="status">{professionalMessage}</span>}
           </div>
         </section>
 
         <section>
           <h2>Comissões padrão</h2>
-          <p className="muted">Aplicado aos procedimentos sem comissão própria e sugerido ao criar novos.</p>
+          <p className="muted">Para os profissionais da clínica, aplicado aos procedimentos sem comissão própria. Terceirizados não recebem comissão e o custo deles fica fora do cálculo: a base é o preço menos esse custo ou, sem preço, os insumos mais o custo operacional.</p>
           <div className="form-row">
             <Field label="Cirurgias">
               <NumberInput suffix="%" min={0} max={100} value={form.defaultVetCommissionSurgeryPercent ?? 0} onChange={(value) => update('defaultVetCommissionSurgeryPercent', value)} />

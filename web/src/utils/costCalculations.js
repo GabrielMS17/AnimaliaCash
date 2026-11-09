@@ -162,9 +162,10 @@ export function calculateProcedure(procedure, insumosMap, settings) {
     else {
         const commissionPercent = procedure.vetCommissionValue ?? getDefaultCommissionPercent(procedure.category, settings);
         if (commissionPercent > 0) {
+            // Terceirizados não participam da comissão: o custo deles fica fora da base
             const baseForCommission = procedure.suggestedPrice && procedure.suggestedPrice > 0
-                ? procedure.suggestedPrice
-                : (directCost + externalProfessionalCost + operationalCost);
+                ? Math.max(0, procedure.suggestedPrice - externalProfessionalCost)
+                : (directCost + operationalCost);
             vetCommissionCost = (baseForCommission * commissionPercent) / 100;
         }
     }

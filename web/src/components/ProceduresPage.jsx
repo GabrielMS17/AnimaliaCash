@@ -19,7 +19,7 @@ const WEIGHT_OPTIONS = WEIGHT_RANGES.map((range) => ({ value: range.id, label: r
 
 /** Página de Cirurgias, Internação ou Banho & Tosa: lista, filtros e cadastro de procedimentos. */
 export default function ProceduresPage({ category }) {
-  const { procedures, insumos, insumosMap, settings, saveProcedure, duplicateProcedure, deleteProcedure, saveInsumo } = useData();
+  const { procedures, insumos, insumosMap, settings, saveProcedure, duplicateProcedure, deleteProcedure, saveInsumo, saveProfessional } = useData();
   const [search, setSearch] = useState('');
   const [weightRange, setWeightRange] = useState('todos');
   const [detail, setDetail] = useState(null);
@@ -120,6 +120,7 @@ export default function ProceduresPage({ category }) {
             setEditing(null);
           }}
           onQuickCreateInsumo={saveInsumo}
+          onQuickCreateProfessional={saveProfessional}
         />
       )}
     </>

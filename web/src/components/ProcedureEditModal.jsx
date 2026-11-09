@@ -40,7 +40,7 @@ function getAutoName(category, weight) {
   return '';
 }
 
-export default function ProcedureEditModal({ procedure, defaultCategory, insumos, insumosMap, settings, onClose, onSave, onQuickCreateInsumo }) {
+export default function ProcedureEditModal({ procedure, defaultCategory, insumos, insumosMap, settings, onClose, onSave, onQuickCreateInsumo, onQuickCreateProfessional }) {
   const category = procedure?.category ?? defaultCategory;
   const isEditing = Boolean(procedure);
 
@@ -60,6 +60,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
     (procedure?.externalProfessionalAssignments ?? []).map((assignment) => ({ ...assignment })),
   );
   const [professionalToAdd, setProfessionalToAdd] = useState('');
+  const [professionalFormOpen, setProfessionalFormOpen] = useState(false);
   const [commissionType, setCommissionType] = useState(procedure?.vetCommissionType ?? 'percent');
   const [commissionValue, setCommissionValue] = useState(procedure?.vetCommissionValue ?? getDefaultCommissionPercent(category, settings));
   const [commissionRole, setCommissionRole] = useState(procedure?.vetCommissionRole ?? DEFAULT_ROLE[category]);
@@ -328,18 +329,36 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
           <div className="form-group">
             {category === 'cirurgia' && (
               <section className="form-group">
-                <h3>Profissionais terceirizados</h3>
+                <div className="list-header">
+                  <h3>Profissionais terceirizados</h3>
+                  <button type="button" className="btn btn-ghost btn-small" onClick={() => setProfessionalFormOpen((open) => !open)}>
+                    {professionalFormOpen ? 'Fechar' : '+ Cadastrar'}
+                  </button>
+                </div>
+                {professionalFormOpen && (
+                  <QuickCreateProfessional
+                    onCreate={(professional) => {
+                      onQuickCreateProfessional(professional);
+                      setAssignments((prev) => [...prev, { professionalId: professional.id, cost: professional.defaultCost }]);
+                      setProfessionalFormOpen(false);
+                    }}
+                  />
+                )}
                 <div className="inline">
                   <select aria-label="Profissional terceirizado" className="grow" value={professionalToAdd} onChange={(event) => setProfessionalToAdd(event.target.value)}>
-                    <option value="">Selecione anestesista ou especialista</option>
+                    <option value="">{availableProfessionals.length > 0 ? 'Selecione anestesista ou especialista' : 'Nenhum outro profissional disponível'}</option>
                     {availableProfessionals.map((professional) => (
                       <option key={professional.id} value={professional.id}>{professional.name} · {professional.specialty}</option>
                     ))}
                   </select>
                   <button type="button" className="btn btn-secondary" disabled={!professionalToAdd} onClick={addProfessional}>Adicionar</button>
                 </div>
-                {(settings.externalProfessionals ?? []).length === 0 && (
-                  <p className="hint">Cadastre profissionais em Configurações para selecioná-los aqui.</p>
+                {availableProfessionals.length === 0 && (
+                  <p className="hint">
+                    {(settings.externalProfessionals ?? []).length === 0
+                      ? 'Nenhum profissional cadastrado. Use "+ Cadastrar" para incluir o primeiro.'
+                      : 'Todos os profissionais cadastrados já estão neste procedimento. Use "+ Cadastrar" para incluir outro.'}
+                  </p>
                 )}
                 {assignments.map((assignment) => {
                   const professional = settings.externalProfessionals?.find((item) => item.id === assignment.professionalId);
@@ -373,7 +392,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
 
             {category === 'cirurgia' && (
               <section className="form-group">
-                <h3>Comissão do profissional</h3>
+                <h3>Comissão do profissional da clínica</h3>
                 <Field label="Profissional">
                   <input type="text" value={commissionRole} onChange={(event) => setCommissionRole(event.target.value)} />
                 </Field>
@@ -398,7 +417,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
 
             <Field
               label="Preço cobrado do tutor (opcional)"
-              hint="Quando informado, a comissão percentual é calculada sobre este preço. Sem preço, ela incide sobre os demais custos."
+              hint="Quando informado, a comissão percentual é calculada sobre este preço menos o custo dos terceirizados. Sem preço, ela incide sobre os insumos e o custo operacional."
             >
               <NumberInput prefix="R$" min={0} placeholder="0,00" value={price} onChange={setPrice} />
             </Field>
@@ -421,6 +440,31 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
         </div>
       )}
     </Modal>
+  );
+}
+
+function QuickCreateProfessional({ onCreate }) {
+  const [name, setName] = useState('');
+  const [specialty, setSpecialty] = useState('');
+  const [cost, setCost] = useState(0);
+
+  return (
+    <div className="quick-create">
+      <h3>Novo profissional</h3>
+      <input type="text" aria-label="Nome do profissional" placeholder="Nome (ex: Dra. Ana Silva)" value={name} onChange={(event) => setName(event.target.value)} />
+      <input type="text" aria-label="Especialidade" placeholder="Especialidade (ex: Anestesiologia)" value={specialty} onChange={(event) => setSpecialty(event.target.value)} />
+      <NumberInput prefix="R$" min={0} label="Custo por procedimento" placeholder="Custo por procedimento" value={cost} onChange={setCost} />
+      <div className="actions-end">
+        <button
+          type="button"
+          className="btn btn-primary btn-small"
+          disabled={!name.trim() || !specialty.trim()}
+          onClick={() => onCreate({ id: `professional_${Date.now()}`, name: name.trim(), specialty: specialty.trim(), defaultCost: Math.max(0, cost) })}
+        >
+          Adicionar profissional
+        </button>
+      </div>
+    </div>
   );
 }
 
