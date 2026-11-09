@@ -205,6 +205,30 @@ export function AnimaliaDataProvider({ children }) {
 
       saveSettings: (next) => update((prev) => ({ ...prev, settings: next })),
 
+      saveProfessional: (saved) => update((prev) => {
+        const professionals = prev.settings.externalProfessionals ?? [];
+        return {
+          ...prev,
+          settings: {
+            ...prev.settings,
+            externalProfessionals: professionals.some((item) => item.id === saved.id)
+              ? professionals.map((item) => (item.id === saved.id ? saved : item))
+              : [...professionals, saved],
+          },
+        };
+      }),
+      deleteProfessional: (id) => update((prev) => ({
+        ...prev,
+        settings: {
+          ...prev.settings,
+          externalProfessionals: (prev.settings.externalProfessionals ?? []).filter((item) => item.id !== id),
+        },
+        procedures: prev.procedures.map((procedure) => {
+          const assignments = (procedure.externalProfessionalAssignments ?? []).filter((item) => item.professionalId !== id);
+          return { ...procedure, externalProfessionalAssignments: assignments.length > 0 ? assignments : undefined };
+        }),
+      })),
+
       saveInsumo: (saved) => update((prev) => ({ ...prev, insumos: upsertById(prev.insumos, saved) })),
       deleteInsumo: (id) => update((prev) => ({
         ...prev,
