@@ -17,7 +17,7 @@ export default function ProcedureDetailModal({ procedure, insumosMap, settings, 
 
   const commissionLabel = procedure.vetCommissionType === 'fixed'
     ? 'valor fixo'
-    : `${formatDecimal(procedure.vetCommissionValue ?? getDefaultCommissionPercent(procedure.category, settings))}% ${procedure.suggestedPrice ? 'do preço' : 'do custo'}`;
+    : `${formatDecimal(procedure.vetCommissionValue ?? getDefaultCommissionPercent(procedure.category, settings))}% ${procedure.suggestedPrice ? 'do preço sem terceirizados' : 'de insumos + operacional'}`;
 
   const composition = [
     { label: 'Insumos', detail: `${calc.itemsCount} itens`, value: breakdown.directCost, color: '#6366F1' },

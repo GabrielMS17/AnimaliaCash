@@ -53,7 +53,7 @@ function getAutoName(category, weight) {
   return '';
 }
 
-export default function ProcedureEditModal({ procedure, defaultCategory, insumos, insumosMap, settings, onClose, onSave, onQuickCreateInsumo }) {
+export default function ProcedureEditModal({ procedure, defaultCategory, insumos, insumosMap, settings, onClose, onSave, onQuickCreateInsumo, onQuickCreateProfessional }) {
   const category = procedure?.category ?? defaultCategory;
   const isEditing = Boolean(procedure);
   const isWide = useIsWide(900);
@@ -75,6 +75,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
     (procedure?.externalProfessionalAssignments ?? []).map((assignment) => ({ ...assignment })),
   );
   const [professionalToAdd, setProfessionalToAdd] = useState('');
+  const [isProfessionalFormOpen, setIsProfessionalFormOpen] = useState(false);
   const [vetCommissionType, setVetCommissionType] = useState(procedure?.vetCommissionType ?? 'percent');
   const [vetCommissionValue, setVetCommissionValue] = useState(
     procedure?.vetCommissionValue ?? getDefaultCommissionPercent(category, settings),
@@ -406,11 +407,23 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
           <View style={[styles.cell, styles.stack, isWide && { flex: 3 }]}>
             {category === 'cirurgia' && (
               <View style={styles.stack}>
-                <Text style={styles.heading}>Profissionais terceirizados</Text>
+                <View style={styles.listHeader}>
+                  <Text style={styles.heading}>Profissionais terceirizados</Text>
+                  <Button small variant="ghost" label={isProfessionalFormOpen ? 'Fechar' : '+ Cadastrar'} onPress={() => setIsProfessionalFormOpen((open) => !open)} />
+                </View>
+                {isProfessionalFormOpen && (
+                  <QuickCreateProfessional
+                    onCreate={(professional) => {
+                      onQuickCreateProfessional(professional);
+                      setProfessionalAssignments((prev) => [...prev, { professionalId: professional.id, cost: professional.defaultCost }]);
+                      setIsProfessionalFormOpen(false);
+                    }}
+                  />
+                )}
                 <View style={styles.inline}>
                   <Select
                     value={professionalToAdd}
-                    placeholder="Selecione anestesista ou especialista"
+                    placeholder={availableProfessionals.length > 0 ? 'Selecione anestesista ou especialista' : 'Nenhum outro profissional disponível'}
                     options={availableProfessionals.map((professional) => ({
                       value: professional.id,
                       label: `${professional.name} · ${professional.specialty}`,
@@ -420,8 +433,12 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
                   />
                   <Button variant="secondary" label="Adicionar" disabled={!professionalToAdd} onPress={addExternalProfessional} />
                 </View>
-                {(settings.externalProfessionals ?? []).length === 0 && (
-                  <Text style={styles.small}>Cadastre profissionais em Configurações para selecioná-los aqui.</Text>
+                {availableProfessionals.length === 0 && (
+                  <Text style={styles.small}>
+                    {(settings.externalProfessionals ?? []).length === 0
+                      ? 'Nenhum profissional cadastrado. Use "+ Cadastrar" para incluir o primeiro.'
+                      : 'Todos os profissionais cadastrados já estão neste procedimento. Use "+ Cadastrar" para incluir outro.'}
+                  </Text>
                 )}
                 {professionalAssignments.map((assignment) => {
                   const professional = settings.externalProfessionals?.find((item) => item.id === assignment.professionalId);
@@ -454,7 +471,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
 
             {category === 'cirurgia' && (
               <View style={styles.stack}>
-                <Text style={styles.heading}>Comissão do profissional</Text>
+                <Text style={styles.heading}>Comissão do profissional da clínica</Text>
                 <Field label="Profissional">
                   <Input value={vetCommissionRole} onChangeText={setVetCommissionRole} />
                 </Field>
@@ -479,7 +496,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
 
             <Field
               label="Preço cobrado do tutor (opcional)"
-              hint="Quando informado, a comissão percentual é calculada sobre este preço. Sem preço, ela incide sobre os demais custos."
+              hint="Quando informado, a comissão percentual é calculada sobre este preço menos o custo dos terceirizados. Sem preço, ela incide sobre os insumos e o custo operacional."
             >
               <NumberInput prefix="R$" min={0} placeholder="0,00" value={price} onChange={setPrice} />
             </Field>
@@ -525,6 +542,31 @@ function CatalogRow({ insumo, added, onPress }) {
         <Text style={styles.plus}>+</Text>
       )}
     </Pressable>
+  );
+}
+
+function QuickCreateProfessional({ onCreate }) {
+  const [name, setName] = useState('');
+  const [specialty, setSpecialty] = useState('');
+  const [cost, setCost] = useState(0);
+
+  return (
+    <View style={styles.quickCreate}>
+      <Text style={styles.heading}>Novo profissional</Text>
+      <Input placeholder="Nome (ex: Dra. Ana Silva)" value={name} onChangeText={setName} />
+      <Input placeholder="Especialidade (ex: Anestesiologia)" value={specialty} onChangeText={setSpecialty} />
+      <Field label="Custo por procedimento">
+        <NumberInput prefix="R$" min={0} value={cost} onChange={setCost} />
+      </Field>
+      <View style={styles.footerButtons}>
+        <Button
+          small
+          label="Adicionar profissional"
+          disabled={!name.trim() || !specialty.trim()}
+          onPress={() => onCreate({ id: `professional_${Date.now()}`, name: name.trim(), specialty: specialty.trim(), defaultCost: Math.max(0, cost) })}
+        />
+      </View>
+    </View>
   );
 }
 

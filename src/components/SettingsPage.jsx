@@ -5,8 +5,11 @@ import { useAnimaliaData } from '../store/AnimaliaDataContext';
 import { formatBRL } from '../utils/costCalculations';
 import { Button, Checkbox, COLORS, confirmAction, Field, Input, NumberInput, SectionHeader, useIsWide } from './ui';
 
+const withoutProfessionals = ({ externalProfessionals, ...rest }) => rest;
+const sameFields = (a, b) => JSON.stringify(withoutProfessionals(a)) === JSON.stringify(withoutProfessionals(b));
+
 export default function SettingsPage() {
-  const { settings, saveSettings, resetData } = useAnimaliaData();
+  const { settings, procedures, saveSettings, saveProfessional, deleteProfessional, resetData } = useAnimaliaData();
   const isWide = useIsWide(640);
   const [form, setForm] = useState(settings);
   const [saved, setSaved] = useState(false);
@@ -14,12 +17,14 @@ export default function SettingsPage() {
   const [professionalSpecialty, setProfessionalSpecialty] = useState('');
   const [professionalCost, setProfessionalCost] = useState(0);
   const [editingProfessionalId, setEditingProfessionalId] = useState(null);
+  const [professionalMessage, setProfessionalMessage] = useState('');
 
   // Acompanha mudanças vindas de fora do formulário (ex: dados baixados do Supabase)
   const [lastSettings, setLastSettings] = useState(settings);
   if (settings !== lastSettings) {
     setLastSettings(settings);
-    setForm(settings);
+    // Mantém o que está sendo digitado se a mudança foi só nos profissionais, que são gravados na hora
+    if (sameFields(form, lastSettings)) setForm(settings);
   }
 
   const update = (key, value) => {
@@ -34,7 +39,7 @@ export default function SettingsPage() {
     setProfessionalCost(0);
   };
 
-  const saveProfessional = () => {
+  const submitProfessional = () => {
     const name = professionalName.trim();
     const specialty = professionalSpecialty.trim();
     if (!name || !specialty) return;
@@ -45,17 +50,24 @@ export default function SettingsPage() {
       specialty,
       defaultCost: Math.max(0, professionalCost),
     };
-    const professionals = form.externalProfessionals ?? [];
-    update(
-      'externalProfessionals',
-      editingProfessionalId
-        ? professionals.map((item) => (item.id === editingProfessionalId ? professional : item))
-        : [...professionals, professional],
-    );
+    saveProfessional(professional);
     clearProfessionalForm();
+    setProfessionalMessage(editingProfessionalId ? '✓ Profissional atualizado.' : '✓ Profissional cadastrado.');
   };
 
-  const isDirty = JSON.stringify(form) !== JSON.stringify(settings);
+  const removeProfessional = async (professional) => {
+    const count = procedures.filter((procedure) =>
+      (procedure.externalProfessionalAssignments ?? []).some((item) => item.professionalId === professional.id)).length;
+    const message = count > 0
+      ? `${professional.name} está em ${count} procedimento(s) e será removido deles, reduzindo o custo. Deseja excluir?`
+      : `Deseja excluir ${professional.name}?`;
+    if (!(await confirmAction(message, 'Excluir'))) return;
+    deleteProfessional(professional.id);
+    if (editingProfessionalId === professional.id) clearProfessionalForm();
+    setProfessionalMessage('✓ Profissional excluído.');
+  };
+
+  const isDirty = !sameFields(form, settings);
   const row = isWide ? styles.row : styles.column;
 
   return (
@@ -70,7 +82,7 @@ export default function SettingsPage() {
         </Section>
 
         <Section title="Profissionais terceirizados" description="Cadastre anestesistas, especialistas e seus valores padrão por procedimento.">
-          {(form.externalProfessionals ?? []).map((professional) => (
+          {(settings.externalProfessionals ?? []).map((professional) => (
             <View key={professional.id} style={styles.listRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemTitle}>{professional.name}</Text>
@@ -91,10 +103,7 @@ export default function SettingsPage() {
                 small
                 variant="danger"
                 label="Excluir"
-                onPress={() => {
-                  update('externalProfessionals', (form.externalProfessionals ?? []).filter((item) => item.id !== professional.id));
-                  if (editingProfessionalId === professional.id) clearProfessionalForm();
-                }}
+                onPress={() => removeProfessional(professional)}
               />
             </View>
           ))}
@@ -114,13 +123,14 @@ export default function SettingsPage() {
               variant="secondary"
               label={editingProfessionalId ? 'Salvar profissional' : '+ Adicionar profissional'}
               disabled={!professionalName.trim() || !professionalSpecialty.trim()}
-              onPress={saveProfessional}
+              onPress={submitProfessional}
             />
             {editingProfessionalId && <Button variant="ghost" label="Cancelar edição" onPress={clearProfessionalForm} />}
+            {professionalMessage ? <Text style={styles.savedText}>{professionalMessage}</Text> : null}
           </View>
         </Section>
 
-        <Section title="Comissões padrão" description="Aplicado aos procedimentos sem comissão própria e sugerido ao criar novos.">
+        <Section title="Comissões padrão" description="Para os profissionais da clínica, aplicado aos procedimentos sem comissão própria. Terceirizados não recebem comissão e o custo deles fica fora do cálculo: a base é o preço menos esse custo ou, sem preço, os insumos mais o custo operacional.">
           <View style={row}>
             <Field label="Cirurgias" style={styles.cell}>
               <NumberInput suffix="%" min={0} max={100} value={form.defaultVetCommissionSurgeryPercent ?? 0} onChange={(value) => update('defaultVetCommissionSurgeryPercent', value)} />
@@ -140,7 +150,9 @@ export default function SettingsPage() {
             label="Salvar configurações"
             disabled={!isDirty}
             onPress={() => {
-              saveSettings({ ...form, clinicName: form.clinicName.trim() });
+              const clinicName = form.clinicName.trim();
+              saveSettings({ ...settings, ...withoutProfessionals(form), clinicName });
+              setForm((prev) => ({ ...prev, clinicName }));
               setSaved(true);
             }}
           />
