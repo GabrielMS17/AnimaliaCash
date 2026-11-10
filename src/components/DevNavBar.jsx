@@ -1,6 +1,6 @@
 import { Link, usePathname } from 'expo-router';
-import { useAnimaliaData } from '../store/AnimaliaDataContext';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAnimaliaData } from '../store/AnimaliaDataContext';
 
 const navItems = [
   { href: '/Login', label: 'Login' },
@@ -13,6 +13,7 @@ const navItems = [
   { href: '/internacao', label: 'Internação' },
   { href: '/banho-tosa', label: 'Banho & Tosa' },
   { href: '/configuracoes', label: 'Configurações' },
+  { href: '/cadastros', label: 'Cadastros' },
 ];
 
 // Barra de navegação rápida (Dev), exibida em todas as rotas pelo _layout

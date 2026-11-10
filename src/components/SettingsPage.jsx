@@ -2,6 +2,7 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
+import { supabase } from '../supabase';
 import { formatBRL } from '../utils/costCalculations';
 import { Button, Checkbox, COLORS, confirmAction, Field, Input, NumberInput, SectionHeader, useIsWide } from './ui';
 
@@ -148,6 +149,7 @@ export default function SettingsPage() {
       </View>
 
       <SyncCard />
+      <ChangePasswordCard />
 
       <View style={[styles.card, styles.resetCard]}>
         <View style={{ flex: 1 }}>
@@ -164,6 +166,112 @@ export default function SettingsPage() {
           }}
         />
       </View>
+    </View>
+  );
+}
+
+function ChangePasswordCard() {
+  const { session } = useAnimaliaData();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [error, setError] = useState(null);
+
+  if (!session) return null;
+
+  const handleUpdatePassword = async () => {
+    setMessage(null);
+    setError(null);
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError('Preencha todos os campos de senha.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('A nova senha e a confirmação não coincidem.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: session.user.email,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        throw new Error('A senha atual está incorreta.');
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) throw updateError;
+
+      setMessage('Senha alterada com sucesso!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError(err.message || 'Erro ao alterar a senha.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.card}>
+      <Section
+        title="Alterar senha"
+        description="Atualize sua senha de acesso ao sistema informando a senha atual e a nova senha."
+      >
+        <Field label="Senha atual">
+          <Input
+            secureTextEntry
+            placeholder="Digite sua senha atual"
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+          />
+        </Field>
+
+        <Field label="Nova senha">
+          <Input
+            secureTextEntry
+            placeholder="Mínimo de 6 caracteres"
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
+        </Field>
+
+        <Field label="Confirmar nova senha">
+          <Input
+            secureTextEntry
+            placeholder="Digite novamente a nova senha"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+        </Field>
+
+        <View style={styles.inline}>
+          <Button
+            label={loading ? 'Alterando…' : 'Atualizar senha'}
+            disabled={loading}
+            onPress={handleUpdatePassword}
+          />
+        </View>
+
+        {message && <Text style={styles.savedText}>✓ {message}</Text>}
+        {error && <Text style={styles.errorText}>{error}</Text>}
+      </Section>
     </View>
   );
 }
