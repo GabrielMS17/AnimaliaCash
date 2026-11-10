@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,13 +19,17 @@ export default function LoginScreen({ onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Estados para o Pop-up de Erro Customizado
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
   const handleLogin = async () => {
     if (!identifier || !password) {
-      if (Platform.OS === 'web') alert('Por favor, preencha todos os campos.');
-      else Alert.alert('Atenção', 'Por favor, preencha todos os campos.');
+      setErrorMessage('Por favor, preencha todos os campos.');
+      setErrorModalVisible(true);
       return;
     }
 
@@ -37,12 +41,30 @@ export default function LoginScreen({ onLoginSuccess }) {
     }
 
     try {
+      // 1. Efetua a autenticação padrão pelo Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email: emailInput,
         password: password,
       });
 
       if (error) throw error;
+
+      const user = data.user;
+
+      if (user) {
+        // 2. Consulta a tabela profiles para verificar o status e permissões do colaborador
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('status, role')
+          .eq('id', user.id)
+          .single();
+
+        // Se encontrar o perfil e ele estiver inativo, bloqueia o acesso
+        if (profile && profile.status === 'Inativo') {
+          await supabase.auth.signOut(); // Desconecta imediatamente
+          throw new Error('Acesso negado. Esta conta encontra-se inativa no sistema.');
+        }
+      }
 
       console.log('Login efetuado com sucesso:', data);
 
@@ -51,12 +73,15 @@ export default function LoginScreen({ onLoginSuccess }) {
       }
     } catch (error) {
       console.error('Erro de Autenticação:', error);
-      const mensagem = error.message || 'Ocorreu um erro ao conectar.';
-      if (Platform.OS === 'web') {
-        alert(`Erro de Autenticação: ${mensagem}`);
-      } else {
-        Alert.alert('Erro na autenticação', mensagem);
+      
+      // Traduz mensagens técnicas do Supabase para uma linguagem amigável
+      let mensagem = error.message;
+      if (mensagem.includes('Invalid login credentials')) {
+        mensagem = 'E-mail (ou CRMV) ou senha incorretos. Verifique os seus dados e tente novamente.';
       }
+
+      setErrorMessage(mensagem || 'Ocorreu um erro ao conectar.');
+      setErrorModalVisible(true);
     } finally {
       setLoading(false);
     }
@@ -124,7 +149,7 @@ export default function LoginScreen({ onLoginSuccess }) {
             />
           </View>
 
-          {/* Botão de Entrar (Ação Primária em Verde ACCENT_GREEN) */}
+          {/* Botão de Entrar */}
           <TouchableOpacity
             style={styles.buttonPrimary}
             onPress={handleLogin}
@@ -138,6 +163,33 @@ export default function LoginScreen({ onLoginSuccess }) {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* MODAL / POP-UP DE ERRO CUSTOMIZADO */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={errorModalVisible}
+          onRequestClose={() => setErrorModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.errorModalContent}>
+              <View style={styles.errorIconCircle}>
+                <Text style={styles.errorCheckmark}>!</Text>
+              </View>
+
+              <Text style={styles.errorTitle}>Atenção</Text>
+              <Text style={styles.errorMessageText}>{errorMessage}</Text>
+
+              <TouchableOpacity
+                style={styles.errorButton}
+                activeOpacity={0.8}
+                onPress={() => setErrorModalVisible(false)}
+              >
+                <Text style={styles.errorButtonText}>Tentar Novamente</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Rodapé Corporativo */}
         <View style={styles.footerContainer}>
@@ -255,6 +307,69 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+
+  // Estilos do Modal de Erro Customizado
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  errorModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 28,
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 4,
+  },
+  errorIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 2,
+    borderColor: '#FCA5A5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  errorCheckmark: {
+    color: '#DC2626',
+    fontSize: 26,
+    fontWeight: '800',
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: PRIMARY_DARK,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorMessageText: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 24,
+  },
+  errorButton: {
+    backgroundColor: PRIMARY_DARK,
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  errorButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
   footerContainer: {
     marginTop: 32,
     paddingVertical: 16,
