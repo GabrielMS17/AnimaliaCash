@@ -1,5 +1,5 @@
-import EstoqueScreen from '../services/screens/estoqueScreen';
+import AnimaliaDataRoute from '../components/AnimaliaDataRoute';
 
 export default function Estoque() {
-  return <EstoqueScreen />;
+  return <AnimaliaDataRoute section="estoque" />;
 }

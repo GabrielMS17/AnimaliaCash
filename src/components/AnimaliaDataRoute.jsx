@@ -6,8 +6,11 @@ import ProceduresPage from './ProceduresPage';
 import SettingsPage from './SettingsPage';
 import { AccentProvider, SECTIONS } from './ui';
 import AppHeader from './AppHeader';
+import EstoqueScreen from '../services/screens/estoqueScreen';
+import CadastrosScreen from '../../AnimaliaCash/src/services/screens/cadastros.jsx';
+import { supabase } from '../supabase';
 
-const SECTION_ORDER = ['banho_tosa', 'cirurgia', 'internacao', 'insumos', 'configuracoes'];
+const SECTION_ORDER = ['banho_tosa', 'cirurgia', 'internacao', 'estoque', 'insumos', 'configuracoes'];
 
 /** Moldura dos módulos de custos: cabeçalho, navegação entre módulos e o conteúdo da seção. */
 export default function AnimaliaDataRoute({ section }) {
@@ -33,21 +36,27 @@ export default function AnimaliaDataRoute({ section }) {
           })}
         </ScrollView>
 
-        <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
-          <View style={styles.content}>
-            {!loaded && <ActivityIndicator size="large" color={current.accent} style={{ marginTop: 40 }} />}
-            {loaded && section === 'insumos' && <InsumosPage />}
-            {loaded && section === 'configuracoes' && <SettingsPage />}
-            {loaded && ['cirurgia', 'internacao', 'banho_tosa'].includes(section) && <ProceduresPage category={section} />}
-          </View>
+        {section === 'estoque' ? (
+          <EstoqueScreen />
+        ) : section === 'cadastros' ? (
+          <CadastrosScreen supabaseClient={supabase} />
+        ) : (
+          <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
+            <View style={styles.content}>
+              {!loaded && <ActivityIndicator size="large" color={current.accent} style={{ marginTop: 40 }} />}
+              {loaded && section === 'insumos' && <InsumosPage />}
+              {loaded && section === 'configuracoes' && <SettingsPage />}
+              {loaded && ['cirurgia', 'internacao', 'banho_tosa'].includes(section) && <ProceduresPage category={section} />}
+            </View>
 
-          <View style={styles.footerContainer}>
-            <Text style={styles.footerText}>
-              © {new Date().getFullYear()} Animalia Cash — Soluções Financeiras
-            </Text>
-            <Text style={styles.footerSubtext}>Todos os direitos reservados.</Text>
-          </View>
-        </ScrollView>
+            <View style={styles.footerContainer}>
+              <Text style={styles.footerText}>
+                © {new Date().getFullYear()} Animalia Cash — Soluções Financeiras
+              </Text>
+              <Text style={styles.footerSubtext}>Todos os direitos reservados.</Text>
+            </View>
+          </ScrollView>
+        )}
       </View>
     </AccentProvider>
   );
