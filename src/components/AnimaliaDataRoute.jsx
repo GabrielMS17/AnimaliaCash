@@ -7,10 +7,10 @@ import SettingsPage from './SettingsPage';
 import { AccentProvider, SECTIONS } from './ui';
 import AppHeader from './AppHeader';
 import EstoqueScreen from '../services/screens/estoqueScreen';
-import CadastrosScreen from '../../AnimaliaCash/src/services/screens/cadastros.jsx';
+import CadastrosScreen from '../services/screens/cadastros';
 import { supabase } from '../supabase';
 
-const SECTION_ORDER = ['banho_tosa', 'cirurgia', 'internacao', 'estoque', 'insumos', 'configuracoes'];
+const SECTION_ORDER = ['banho_tosa', 'cirurgia', 'internacao', 'estoque', 'insumos', 'cadastros'];
 
 /** Moldura dos módulos de custos: cabeçalho, navegação entre módulos e o conteúdo da seção. */
 export default function AnimaliaDataRoute({ section }) {
