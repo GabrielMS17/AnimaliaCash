@@ -9,7 +9,7 @@ const menuItems = [
   { href: '/banho-tosa', titulo: 'Banho & Tosa', descricao: 'Custo de cada serviço de estética por porte' },
   { href: '/insumos', titulo: 'Insumos', descricao: 'Materiais e medicamentos com custo unitário' },
   { href: '/estoque', titulo: 'Estoque', descricao: 'Produtos, entrada de lotes e custo médio' },
-  { href: '/configuracoes', titulo: 'Configurações', descricao: 'Clínica, terceirizados, comissões e sincronização' },
+  { href: '/cadastros', titulo: 'Cadastros', descricao: 'Gerencie os acessos e perfis dos colaboradores' },
 ];
 
 export default function TelaInicial() {

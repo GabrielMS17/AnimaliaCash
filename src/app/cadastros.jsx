@@ -1,5 +1,5 @@
-import CadastrosScreen from '../services/screens/cadastros';
+import AnimaliaDataRoute from '../components/AnimaliaDataRoute';
 
 export default function CadastrosRoute() {
-  return <CadastrosScreen />;
+  return <AnimaliaDataRoute section="cadastros" />;
 }

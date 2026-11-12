@@ -1,7 +1,6 @@
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import DevNavBar from '../components/DevNavBar';
 import { AnimaliaDataProvider, useAnimaliaData } from '../store/AnimaliaDataContext';
 
 // Exige login para acessar o app. Use false só para testes locais sem autenticação.
@@ -43,10 +42,5 @@ function AuthGate() {
     );
   }
 
-  return (
-    <View style={{ flex: 1 }}>
-      <DevNavBar />
-      <Slot />
-    </View>
-  );
+  return <Slot />;
 }
