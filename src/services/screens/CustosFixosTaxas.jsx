@@ -10,10 +10,14 @@ import {
   View
 } from 'react-native';
 import AppHeader from '../../components/AppHeader';
+import { useAnimaliaData } from '../../store/AnimaliaDataContext';
 import { supabase } from '../../supabase';
+import { calculateProcedure } from '../../utils/costCalculations';
 
 export default function CustosETaxasScreen() {
-  const [tab, setTab] = useState('custos');
+  const { procedures, insumosMap, settings } = useAnimaliaData();
+  
+  const [tab, setTab] = useState('custos'); // 'custos', 'variaveis', 'taxas'
   const [custosFixos, setCustosFixos] = useState([]);
   const [taxasPagamento, setTaxasPagamento] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,19 +30,28 @@ export default function CustosETaxasScreen() {
   const [valorInput, setValorInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Estados do Modal de Confirmação de Exclusão (Personalizado)
+  // Estados do Modal de Listagem de Itens por Categoria (Custos Variáveis)
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [categoriaSelecionadaDetalhes, setCategoriaSelecionadaDetalhes] = useState(null);
+
+  // Estados do Modal de Confirmação de Exclusão
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [itemParaDeletarId, setItemParaDeletarId] = useState(null);
+  const [itemParaDeletar, setItemParaDeletar] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   const categoriasCustos = ['Estrutura', 'Utilidades', 'Pessoal', 'Administrativo', 'Manutenção'];
+  const categoriasVariaveisOpts = [
+    { id: 'cirurgia', label: 'Cirurgias' },
+    { id: 'internacao', label: 'Internação' },
+    { id: 'banho_tosa', label: 'Banho e Tosa' }
+  ];
   const formasTaxas = ['À vista / Instantâneo', 'Débito', 'Crédito à vista', 'Crédito Parcelado (2x a 6x)'];
 
   useEffect(() => {
-    fetchData();
+    fetchFinancialData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchFinancialData = async () => {
     setLoading(true);
     try {
       const { data: custosData, error: custosError } = await supabase
@@ -58,16 +71,70 @@ export default function CustosETaxasScreen() {
       setCustosFixos(custosData || []);
       setTaxasPagamento(taxasData || []);
     } catch (error) {
-      console.error('Erro ao carregar dados financeiros:', error);
+      console.error('Erro ao carregar custos fixos e taxas:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  // Cálculo dinâmico dos procedimentos usando a store global
+  const procedimentosCalculados = (procedures || []).map((proc) => {
+    const calc = calculateProcedure(proc, insumosMap, settings);
+    return {
+      ...proc,
+      custoTotalCalculado: calc.breakdown.totalCost || 0
+    };
+  });
+
+  const totaisPorCategoria = {
+    cirurgia: { total: 0, itens: 0 },
+    internacao: { total: 0, itens: 0 },
+    banho_tosa: { total: 0, itens: 0 }
+  };
+
+  procedimentosCalculados.forEach((proc) => {
+    const cat = proc.category;
+    if (totaisPorCategoria[cat]) {
+      totaisPorCategoria[cat].total += proc.custoTotalCalculado;
+      totaisPorCategoria[cat].itens += 1;
+    }
+  });
+
+  const custosVariaveisConsolidados = [
+    { id: 'cirurgia', nome: 'Cirurgias', categoria: 'cirurgia', valor: totaisPorCategoria.cirurgia.total, qtd: totaisPorCategoria.cirurgia.itens },
+    { id: 'internacao', nome: 'Internação', categoria: 'internacao', valor: totaisPorCategoria.internacao.total, qtd: totaisPorCategoria.internacao.itens },
+    { id: 'banho_tosa', nome: 'Banho e Tosa', categoria: 'banho_tosa', valor: totaisPorCategoria.banho_tosa.total, qtd: totaisPorCategoria.banho_tosa.itens }
+  ];
+
+  const totalCustosFixos = custosFixos.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+  const totalCustosVariaveis = custosVariaveisConsolidados.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+  const horaSalaCalculada = totalCustosFixos > 0 ? totalCustosFixos / 160 : 0;
+  
+  const taxaMediaCadastrada = taxasPagamento.length > 0
+    ? taxasPagamento.reduce((acc, item) => acc + Number(item.taxa || 0), 0) / taxasPagamento.length
+    : 2.5;
+
+  const avaliarSaudeFinanceiraIA = () => {
+    if (totalCustosFixos === 0 && procedures.length === 0) {
+      return { status: 'Aguardando Dados', cor: '#94A3B8', msg: 'Cadastre custos fixos para iniciar a análise.' };
+    }
+    if (totalCustosFixos > 20000 || taxaMediaCadastrada > 4.0) {
+      return { status: 'Risco / Alerta Vermelho', cor: '#EF4444', msg: 'Custos fixos elevados ou taxas acima da média ideal.' };
+    } else if (totalCustosFixos > 10000 || taxaMediaCadastrada > 2.8) {
+      return { status: 'Estável com Atenção', cor: '#F59E0B', msg: 'Operação equilibrada. Incentive pagamentos via Pix.' };
+    } else {
+      return { status: 'Saudável e Otimizada', cor: '#00A86B', msg: 'Sua estrutura de custos e taxas está perfeitamente alinhada.' };
+    }
+  };
+
+  const diagnosticoIA = avaliarSaudeFinanceiraIA();
+
   const handleOpenModalCriacao = () => {
     setEditandoId(null);
     setNomeInput('');
-    setCategoriaInput(tab === 'custos' ? 'Estrutura' : 'À vista / Instantâneo');
+    if (tab === 'custos') setCategoriaInput('Estrutura');
+    else if (tab === 'variaveis') setCategoriaInput('cirurgia');
+    else setCategoriaInput('À vista / Instantâneo');
     setValorInput('');
     setModalVisible(true);
   };
@@ -78,7 +145,7 @@ export default function CustosETaxasScreen() {
       setNomeInput(item.nome);
       setCategoriaInput(item.categoria || 'Estrutura');
       setValorInput(String(item.valor));
-    } else {
+    } else if (tab === 'taxas') {
       setNomeInput(item.bandeira);
       setCategoriaInput(item.forma || 'À vista / Instantâneo');
       setValorInput(String(item.taxa));
@@ -87,8 +154,8 @@ export default function CustosETaxasScreen() {
   };
 
   const handleSaveItem = async () => {
-    if (!nomeInput || !valorInput) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+    if (!valorInput) {
+      alert('Por favor, preencha o valor/taxa.');
       return;
     }
 
@@ -109,7 +176,21 @@ export default function CustosETaxasScreen() {
           ]);
           if (error) throw error;
         }
-      } else {
+      } else if (tab === 'variaveis') {
+        const nomeProc = nomeInput || `Custo Extra (${formatarCategoriaVariavel(categoriaInput)})`;
+        const { error } = await supabase.from('procedures').insert([
+          {
+            id: `proc_${Date.now()}`,
+            name: nomeProc,
+            category: categoriaInput,
+            description: 'Cadastrado como custo variável extra',
+            fixed_overhead_cost: valorFormatado,
+            duration_minutes: 60
+          },
+        ]);
+        if (error) throw error;
+        alert('Custo variável extra adicionado com sucesso!');
+      } else if (tab === 'taxas') {
         if (editandoId) {
           const { error } = await supabase
             .from('taxas_pagamento')
@@ -125,7 +206,7 @@ export default function CustosETaxasScreen() {
       }
 
       setModalVisible(false);
-      fetchData();
+      fetchFinancialData();
     } catch (error) {
       console.error('Erro ao salvar:', error);
       alert(`Erro ao salvar: ${error.message || 'Erro desconhecido'}`);
@@ -134,23 +215,27 @@ export default function CustosETaxasScreen() {
     }
   };
 
-  // Funções do Modal de Exclusão Personalizado
-  const promptDelete = (id) => {
-    setItemParaDeletarId(id);
+  const promptDelete = (item) => {
+    setItemParaDeletar(item);
     setDeleteModalVisible(true);
   };
 
   const confirmDelete = async () => {
-    if (!itemParaDeletarId) return;
-    const tabela = tab === 'custos' ? 'custos_fixos' : 'taxas_pagamento';
+    if (!itemParaDeletar) return;
 
     setDeleting(true);
     try {
-      const { error } = await supabase.from(tabela).delete().eq('id', itemParaDeletarId);
-      if (error) throw error;
+      if (tab === 'custos') {
+        const { error } = await supabase.from('custos_fixos').delete().eq('id', itemParaDeletar.id);
+        if (error) throw error;
+      } else if (tab === 'taxas') {
+        const { error } = await supabase.from('taxas_pagamento').delete().eq('id', itemParaDeletar.id);
+        if (error) throw error;
+      }
+
       setDeleteModalVisible(false);
-      setItemParaDeletarId(null);
-      fetchData();
+      setItemParaDeletar(null);
+      fetchFinancialData();
     } catch (error) {
       console.error('Erro ao excluir:', error);
       alert(`Erro ao excluir: ${error.message}`);
@@ -159,41 +244,15 @@ export default function CustosETaxasScreen() {
     }
   };
 
-  const totalCustosFixos = custosFixos.reduce((acc, item) => acc + Number(item.valor || 0), 0);
-  const horaSalaCalculada = totalCustosFixos > 0 ? totalCustosFixos / 160 : 0;
-  
-  const taxaMediaCadastrada = taxasPagamento.length > 0
-    ? taxasPagamento.reduce((acc, item) => acc + Number(item.taxa || 0), 0) / taxasPagamento.length
-    : 2.5;
-
-  const avaliarSaudeFinanceiraIA = () => {
-    if (totalCustosFixos === 0) return { status: 'Aguardando Dados', cor: '#94A3B8', msg: 'Cadastre custos fixos para iniciar a análise.' };
-    
-    if (totalCustosFixos > 20000 || taxaMediaCadastrada > 4.0) {
-      return { 
-        status: 'Risco / Alerta Vermelho', 
-        cor: '#EF4444', 
-        msg: 'Custos fixos elevados (> R$ 20.000) ou taxas de cartão acima da média ideal.' 
-      };
-    } else if (totalCustosFixos > 10000 || taxaMediaCadastrada > 2.8) {
-      return { 
-        status: 'Estável com Atenção', 
-        cor: '#F59E0B', 
-        msg: 'Operação equilibrada. Incentive pagamentos via Pix para reter margem.' 
-      };
-    } else {
-      return { 
-        status: 'Saudável e Otimizada', 
-        cor: '#00A86B', 
-        msg: 'Sua estrutura de custos e taxas está perfeitamente alinhada para uma clínica nova.' 
-      };
-    }
-  };
-
-  const diagnosticoIA = avaliarSaudeFinanceiraIA();
-
   const formatCurrency = (value) => {
     return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const formatarCategoriaVariavel = (cat) => {
+    if (cat === 'cirurgia') return 'Cirurgias';
+    if (cat === 'internacao') return 'Internação';
+    if (cat === 'banho_tosa') return 'Banho e Tosa';
+    return cat;
   };
 
   return (
@@ -202,25 +261,29 @@ export default function CustosETaxasScreen() {
 
       <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
         <View style={styles.pageHeader}>
-          <Text style={styles.sectionTitle}>Custos Fixos e Taxas</Text>
+          <Text style={styles.sectionTitle}>Custos e Taxas da Clínica</Text>
           <Text style={styles.sectionSubtitle}>
-            Gerencie custos operacionais, cálculo de hora/sala e taxas de meios de pagamento em tempo real.
+            Gerencie custos operacionais fixos, consolidação de variáveis, cálculo de hora/sala e taxas de pagamento.
           </Text>
         </View>
 
-        {/* Métrica / Indicador do Cálculo Hora/Sala Dinâmico */}
-        <View style={styles.card}>
-          <View style={styles.metricRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.metricTitle}>Hora/Sala Operacional Calculada</Text>
-              <Text style={styles.metricSub}>Baseado no total de {formatCurrency(totalCustosFixos)} em custos mensais</Text>
-            </View>
-            <Text style={styles.metricValue}>{formatCurrency(horaSalaCalculada)} / h</Text>
+        {/* Métricas / Indicadores Dinâmicos */}
+        <View style={styles.metricsRowContainer}>
+          <View style={[styles.card, { flex: 1, marginBottom: 0 }]}>
+            <Text style={styles.metricTitle}>Hora/Sala Calculada</Text>
+            <Text style={styles.metricSub}>Baseado nos custos fixos</Text>
+            <Text style={[styles.metricValue, { marginTop: 6 }]}>{formatCurrency(horaSalaCalculada)} / h</Text>
+          </View>
+
+          <View style={[styles.card, { flex: 1, marginBottom: 0 }]}>
+            <Text style={styles.metricTitle}>Total Variável Consolidado</Text>
+            <Text style={styles.metricSub}>Cirurgia, Internação, Banho e Tosa</Text>
+            <Text style={[styles.metricValue, { color: PRIMARY_DARK, marginTop: 6 }]}>{formatCurrency(totalCustosVariaveis)}</Text>
           </View>
         </View>
 
         {/* CARD DO DIAGNÓSTICO FINANCEIRO POR MACHINE LEARNING */}
-        <View style={styles.card}>
+        <View style={[styles.card, { marginTop: 16 }]}>
           <View style={styles.aiHeaderRow}>
             <Text style={styles.aiBadgeText}>🤖 DIAGNÓSTICO INTELIGENTE DA CLÍNICA (IA)</Text>
           </View>
@@ -237,67 +300,47 @@ export default function CustosETaxasScreen() {
               <Text style={styles.aiMessageText}>{diagnosticoIA.msg}</Text>
             </View>
           </View>
-
-          {/* Legenda Explicativa */}
-          <View style={styles.legendaContainer}>
-            <Text style={styles.legendaTitle}>Critérios de Diagnóstico da IA:</Text>
-            
-            <View style={styles.legendaItem}>
-              <View style={[styles.legendaDot, { backgroundColor: '#00A86B' }]} />
-              <Text style={styles.legendaText}>
-                <Text style={{ fontWeight: '700', color: PRIMARY_DARK }}>Saudável:</Text> Custos baixos e taxa média até 2.8%.
-              </Text>
-            </View>
-
-            <View style={styles.legendaItem}>
-              <View style={[styles.legendaDot, { backgroundColor: '#F59E0B' }]} />
-              <Text style={styles.legendaText}>
-                <Text style={{ fontWeight: '700', color: PRIMARY_DARK }}>Estável:</Text> Custos moderados (R$ 10k a R$ 20k) ou taxa entre 2.8% e 4.0%.
-              </Text>
-            </View>
-
-            <View style={styles.legendaItem}>
-              <View style={[styles.legendaDot, { backgroundColor: '#EF4444' }]} />
-              <Text style={styles.legendaText}>
-                <Text style={{ fontWeight: '700', color: PRIMARY_DARK }}>Risco:</Text> Custos fixos {'>'} R$ 20.000,00 ou taxa média {'>'} 4.0%.
-              </Text>
-            </View>
-          </View>
         </View>
 
-        {/* Botão de Ação Primario */}
+        {/* Botão de Ação Dinâmico */}
         <TouchableOpacity
           style={styles.buttonPrimary}
           activeOpacity={0.8}
           onPress={handleOpenModalCriacao}
         >
           <Text style={styles.buttonText}>
-            {tab === 'custos' ? '+ Novo Custo Fixo' : '+ Nova Taxa'}
+            {tab === 'custos' 
+              ? '+ Novo Custo Fixo' 
+              : tab === 'variaveis' 
+              ? '+ Adicionar Custo Variável Extra' 
+              : '+ Nova Taxa de Pagamento'}
           </Text>
         </TouchableOpacity>
 
-        {/* Filtros / Tabs Estilizados */}
+        {/* Três Abas (Tabs) Estilizadas */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tabButton, tab === 'custos' && styles.tabButtonActive]}
             onPress={() => setTab('custos')}
           >
-            <Text style={[styles.tabText, tab === 'custos' && styles.tabTextActive]}>
-              Custos Fixos Mensais
-            </Text>
+            <Text style={[styles.tabText, tab === 'custos' && styles.tabTextActive]}>Custos Fixos</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabButton, tab === 'variaveis' && styles.tabButtonActive]}
+            onPress={() => setTab('variaveis')}
+          >
+            <Text style={[styles.tabText, tab === 'variaveis' && styles.tabTextActive]}>Custos Variáveis</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.tabButton, tab === 'taxas' && styles.tabButtonActive]}
             onPress={() => setTab('taxas')}
           >
-            <Text style={[styles.tabText, tab === 'taxas' && styles.tabTextActive]}>
-              Taxas de Meios de Pagamento
-            </Text>
+            <Text style={[styles.tabText, tab === 'taxas' && styles.tabTextActive]}>Taxas de Pagamento</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Conteúdo das Tabelas */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={ACCENT_GREEN} />
@@ -327,13 +370,42 @@ export default function CustosETaxasScreen() {
                     <TouchableOpacity onPress={() => handleOpenModalEdicao(item)} style={styles.actionButtonEdit}>
                       <Text style={styles.actionEditText}>Editar</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => promptDelete(item.id)} style={styles.actionButtonDelete}>
+                    <TouchableOpacity onPress={() => promptDelete(item)} style={styles.actionButtonDelete}>
                       <Text style={styles.actionDeleteText}>Excluir</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ))
             )}
+          </View>
+        ) : tab === 'variaveis' ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Custos Variáveis por Categoria (Consolidado)</Text>
+            <Text style={styles.aiCardDesc}>Clique em uma categoria para ver os itens detalhados calculados.</Text>
+            
+            <View style={styles.tableHeader}>
+              <Text style={[styles.columnHeader, { flex: 2 }]}>Categoria</Text>
+              <Text style={[styles.columnHeader, { flex: 1.2, textAlign: 'center' }]}>Qtd. Itens</Text>
+              <Text style={[styles.columnHeader, { flex: 1, textAlign: 'right' }]}>Valor Total</Text>
+            </View>
+
+            {custosVariaveisConsolidados.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.tableRowClickable}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setCategoriaSelecionadaDetalhes(item.categoria);
+                  setDetailsModalVisible(true);
+                }}
+              >
+                <Text style={[styles.cellTextBold, { flex: 2, color: '#0284C7' }]}>{item.nome} 🔍</Text>
+                <Text style={[styles.cellText, { flex: 1.2, textAlign: 'center' }]}>{item.qtd} cad.</Text>
+                <Text style={[styles.cellCost, { flex: 1, textAlign: 'right' }]}>
+                  {formatCurrency(item.valor)}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         ) : (
           <View style={styles.card}>
@@ -359,7 +431,7 @@ export default function CustosETaxasScreen() {
                     <TouchableOpacity onPress={() => handleOpenModalEdicao(item)} style={styles.actionButtonEdit}>
                       <Text style={styles.actionEditText}>Editar</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => promptDelete(item.id)} style={styles.actionButtonDelete}>
+                    <TouchableOpacity onPress={() => promptDelete(item)} style={styles.actionButtonDelete}>
                       <Text style={styles.actionDeleteText}>Excluir</Text>
                     </TouchableOpacity>
                   </View>
@@ -368,6 +440,59 @@ export default function CustosETaxasScreen() {
             )}
           </View>
         )}
+
+        {/* Modal de Listagem Detalhada de Itens da Categoria */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={detailsModalVisible}
+          onRequestClose={() => setDetailsModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxWidth: 540, maxHeight: '80%' }]}>
+              <View style={styles.detailsModalHeader}>
+                <Text style={styles.modalTitle}>
+                  Itens de {formatarCategoriaVariavel(categoriaSelecionadaDetalhes)}
+                </Text>
+                <TouchableOpacity onPress={() => setDetailsModalVisible(false)}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#64748B' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ marginVertical: 10 }}>
+                {procedimentosCalculados
+                  .filter((p) => p.category === categoriaSelecionadaDetalhes)
+                  .length === 0 ? (
+                  <Text style={styles.emptyText}>Nenhum item cadastrado nesta categoria.</Text>
+                ) : (
+                  procedimentosCalculados
+                    .filter((p) => p.category === categoriaSelecionadaDetalhes)
+                    .map((item) => (
+                      <View key={item.id} style={styles.detailRowItem}>
+                        <View style={{ flex: 2 }}>
+                          <Text style={styles.cellTextBold}>{item.name}</Text>
+                          <Text style={styles.subDetailText}>
+                            {item.targetWeightKg ? `${item.targetWeightKg} kg • ` : ''}
+                            Duração: {item.durationMinutes || 60} min
+                          </Text>
+                        </View>
+                        <Text style={[styles.cellCost, { flex: 1, textAlign: 'right' }]}>
+                          {formatCurrency(item.custoTotalCalculado)}
+                        </Text>
+                      </View>
+                    ))
+                )}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel, { marginTop: 12, width: '100%' }]}
+                onPress={() => setDetailsModalVisible(false)}
+              >
+                <Text style={styles.modalButtonCancelText}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Modal de Cadastro / Edição */}
         <Modal
@@ -380,47 +505,120 @@ export default function CustosETaxasScreen() {
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>
                 {editandoId 
-                  ? (tab === 'custos' ? 'Editar Custo Fixo' : 'Editar Taxa')
-                  : (tab === 'custos' ? 'Adicionar Novo Custo Fixo' : 'Adicionar Nova Taxa')}
+                  ? 'Editar Registo' 
+                  : tab === 'custos' 
+                  ? 'Adicionar Novo Custo Fixo' 
+                  : tab === 'variaveis'
+                  ? 'Adicionar Custo Variável Extra'
+                  : 'Adicionar Nova Taxa'}
               </Text>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>{tab === 'custos' ? 'Nome do Custo' : 'Meio / Bandeira'}</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder={tab === 'custos' ? 'Ex: Aluguel, Energia...' : 'Ex: PIX, Cartão de Crédito'}
-                  placeholderTextColor="#94A3B8"
-                  value={nomeInput}
-                  onChangeText={setNomeInput}
-                  autoFocus={true}
-                />
-              </View>
+              {tab === 'custos' && (
+                <>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Nome do Custo</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Ex: Aluguel, Energia..."
+                      placeholderTextColor="#94A3B8"
+                      value={nomeInput}
+                      onChangeText={setNomeInput}
+                      autoFocus={true}
+                    />
+                  </View>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Selecione a Categoria</Text>
+                    <View style={styles.chipContainer}>
+                      {categoriasCustos.map((opcao) => {
+                        const selecionado = categoriaInput === opcao;
+                        return (
+                          <TouchableOpacity
+                            key={opcao}
+                            style={[styles.chipButton, selecionado && styles.chipButtonActive]}
+                            onPress={() => setCategoriaInput(opcao)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={[styles.chipText, selecionado && styles.chipTextActive]}>{opcao}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </>
+              )}
+
+              {tab === 'variaveis' && (
+                <>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Nome do Custo Variável / Procedimento Extra</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Ex: Exame de sangue extra, Material adicional..."
+                      placeholderTextColor="#94A3B8"
+                      value={nomeInput}
+                      onChangeText={setNomeInput}
+                      autoFocus={true}
+                    />
+                  </View>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Categoria de Destino</Text>
+                    <View style={styles.chipContainer}>
+                      {categoriasVariaveisOpts.map((opcao) => {
+                        const selecionado = categoriaInput === opcao.id;
+                        return (
+                          <TouchableOpacity
+                            key={opcao.id}
+                            style={[styles.chipButton, selecionado && styles.chipButtonActive]}
+                            onPress={() => setCategoriaInput(opcao.id)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={[styles.chipText, selecionado && styles.chipTextActive]}>{opcao.label}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </>
+              )}
+
+              {tab === 'taxas' && (
+                <>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Meio / Bandeira</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Ex: PIX, Cartão Visa..."
+                      placeholderTextColor="#94A3B8"
+                      value={nomeInput}
+                      onChangeText={setNomeInput}
+                      autoFocus={true}
+                    />
+                  </View>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Forma de Pagamento</Text>
+                    <View style={styles.chipContainer}>
+                      {formasTaxas.map((opcao) => {
+                        const selecionado = categoriaInput === opcao;
+                        return (
+                          <TouchableOpacity
+                            key={opcao}
+                            style={[styles.chipButton, selecionado && styles.chipButtonActive]}
+                            onPress={() => setCategoriaInput(opcao)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={[styles.chipText, selecionado && styles.chipTextActive]}>{opcao}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </>
+              )}
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>
-                  {tab === 'custos' ? 'Selecione a Categoria' : 'Forma de Pagamento'}
+                  {tab === 'taxas' ? 'Taxa (%)' : tab === 'variaveis' ? 'Custo / Valor Base (R$)' : 'Valor / Custo Mensal (R$)'}
                 </Text>
-                <View style={styles.chipContainer}>
-                  {(tab === 'custos' ? categoriasCustos : formasTaxas).map((opcao) => {
-                    const selecionado = categoriaInput === opcao;
-                    return (
-                      <TouchableOpacity
-                        key={opcao}
-                        style={[styles.chipButton, selecionado && styles.chipButtonActive]}
-                        onPress={() => setCategoriaInput(opcao)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[styles.chipText, selecionado && styles.chipTextActive]}>
-                          {opcao}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>{tab === 'custos' ? 'Valor Mensal (R$)' : 'Taxa (%)'}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="0.00"
@@ -455,7 +653,7 @@ export default function CustosETaxasScreen() {
           </View>
         </Modal>
 
-        {/* NOVO: Modal de Confirmação de Exclusão Personalizado */}
+        {/* Modal de Confirmação de Exclusão */}
         <Modal
           animationType="fade"
           transparent={true}
@@ -467,9 +665,9 @@ export default function CustosETaxasScreen() {
               <View style={styles.deleteIconContainer}>
                 <Text style={{ fontSize: 24 }}>⚠️</Text>
               </View>
-              <Text style={[styles.modalTitle, { textAlign: 'center', marginTop: 8 }]}>Excluir Item</Text>
+              <Text style={[styles.modalTitle, { textAlign: 'center', marginTop: 8 }]}>Excluir Registo</Text>
               <Text style={styles.deleteModalText}>
-                Tem certeza que deseja excluir permanentemente este registo? Esta ação não pode ser desfeita.
+                Tem certeza que deseja apagar "{itemParaDeletar?.nome || itemParaDeletar?.bandeira}"?
               </Text>
 
               <View style={styles.modalButtonsRow}>
@@ -497,7 +695,6 @@ export default function CustosETaxasScreen() {
           </View>
         </Modal>
 
-        {/* Rodapé Corporativo */}
         <View style={styles.footerContainer}>
           <Text style={styles.footerText}>© {new Date().getFullYear()} Animalia Cash — Soluções Financeiras</Text>
           <Text style={styles.footerSubtext}>Todos os direitos reservados.</Text>
@@ -518,6 +715,10 @@ const styles = StyleSheet.create({
   pageHeader: { marginBottom: 16 },
   sectionTitle: { fontSize: 22, fontWeight: '700', color: PRIMARY_DARK },
   sectionSubtitle: { fontSize: 13, color: '#64748B', marginTop: 4 },
+  metricsRowContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -569,44 +770,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 16,
   },
-  legendaContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingTop: 12,
-    marginTop: 4,
-  },
-  legendaTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  legendaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  legendaDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  legendaText: {
-    fontSize: 11,
-    color: '#64748B',
-    flex: 1,
-  },
   cardTitle: { fontSize: 16, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 14 },
-  metricRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  metricTitle: { fontWeight: '700', fontSize: 15, color: PRIMARY_DARK },
-  metricSub: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  metricValue: { fontSize: 18, fontWeight: '800', color: ACCENT_GREEN },
+  metricTitle: { fontWeight: '700', fontSize: 13, color: PRIMARY_DARK },
+  metricSub: { fontSize: 11, color: '#64748B', marginTop: 2 },
+  metricValue: { fontSize: 16, fontWeight: '800', color: ACCENT_GREEN },
   buttonPrimary: {
     backgroundColor: ACCENT_GREEN,
     paddingVertical: 12,
@@ -618,17 +785,17 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     marginBottom: 16,
+    gap: 6,
   },
   tabButton: {
     flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     borderRadius: 8,
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
     borderColor: '#CBD5E1',
     alignItems: 'center',
-    marginRight: 6,
   },
   tabButtonActive: {
     backgroundColor: PRIMARY_DARK,
@@ -662,6 +829,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     alignItems: 'center',
+  },
+  tableRowClickable: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    alignItems: 'center',
+    backgroundColor: '#FAFAFA',
+    paddingHorizontal: 4,
+    borderRadius: 6,
+    marginVertical: 2,
   },
   cellTextBold: {
     fontWeight: '700',
@@ -742,6 +920,27 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  detailsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    paddingBottom: 10,
+    marginBottom: 10,
+  },
+  detailRowItem: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  subDetailText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
   modalTitle: { fontSize: 18, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 16 },
   deleteIconContainer: {
