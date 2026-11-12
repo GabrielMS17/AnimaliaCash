@@ -1,25 +1,68 @@
-import { useState } from 'react';
-import { Segmented } from '../components/ui';
+import { useCallback, useEffect, useState } from 'react';
+import { Field, Modal, NumberInput, Segmented } from '../components/ui';
+import { supabase } from '../supabase';
 
-// Dados de exemplo, iguais aos da tela do app (o cadastro de templates ainda não existe)
-const TEMPLATES = [
-  { id: '1', nome: 'Banho Porte P', categoria: 'Estética', tempoEstimado: '45 min', insumosCount: 4 },
-  { id: '2', nome: 'Castração Felina', categoria: 'Cirúrgico', tempoEstimado: '60 min', insumosCount: 5 },
-  { id: '3', nome: 'Banho e Tosa Higiênica Porte M', categoria: 'Estética', tempoEstimado: '60 min', insumosCount: 4 },
-  { id: '4', nome: 'Profilaxia Dental', categoria: 'Clínico', tempoEstimado: '90 min', insumosCount: 4 },
-  { id: '5', nome: 'Vacinação Múltipla (V10)', categoria: 'Clínico', tempoEstimado: '15 min', insumosCount: 3 },
-];
-
+// Mesma tela do app: os templates ficam na tabela templates_procedimentos do Supabase
 const TABS = [
   { value: 'Todos', label: 'Todos' },
   { value: 'Estética', label: 'Estética' },
   { value: 'Cirúrgico', label: 'Cirúrgicos' },
   { value: 'Clínico', label: 'Clínicos' },
 ];
+const CATEGORIAS = TABS.slice(1).map((item) => ({ value: item.value, label: item.value }));
+const EMPTY_FORM = { nome: '', categoria: 'Estética', tempo: '', insumos: 0 };
 
 export default function Templates() {
   const [tab, setTab] = useState('Todos');
-  const visiveis = TEMPLATES.filter((item) => tab === 'Todos' || item.categoria === tab);
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [form, setForm] = useState(null);
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchTemplates = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    const { data, error } = await supabase.from('templates_procedimentos').select('*').order('nome', { ascending: true });
+    if (error) {
+      console.error('Erro ao buscar templates:', error);
+      setLoadError(`Não foi possível carregar os templates: ${error.message}`);
+    } else {
+      setTemplates(data ?? []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
+
+  const save = async () => {
+    if (!form.nome.trim() || !form.tempo.trim() || !form.insumos) {
+      setFormError('Por favor, preencha todos os campos obrigatórios.');
+      return;
+    }
+    setSubmitting(true);
+    setFormError('');
+    const tempo = form.tempo.trim();
+    const { error } = await supabase.from('templates_procedimentos').insert([{
+      nome: form.nome.trim(),
+      categoria: form.categoria,
+      tempo_estimado: tempo.includes('min') ? tempo : `${tempo} min`,
+      insumos_count: Math.round(form.insumos),
+    }]);
+    setSubmitting(false);
+    if (error) {
+      console.error('Erro ao salvar template:', error);
+      setFormError(`Erro ao salvar: ${error.message || 'Erro desconhecido'}`);
+      return;
+    }
+    setForm(null);
+    fetchTemplates();
+  };
+
+  const visiveis = templates.filter((item) => tab === 'Todos' || item.categoria === tab);
 
   return (
     <>
@@ -33,38 +76,84 @@ export default function Templates() {
           <strong>Templates de Serviços Ativos</strong>
           <small>Padronização de consumo e agilidade na operação diária</small>
         </div>
-        <b>{TEMPLATES.length} ativos</b>
+        <b>{templates.length} ativos</b>
       </div>
 
-      <button type="button" className="btn btn-primary btn-block" disabled title="Ainda não disponível">+ Criar Novo Template</button>
+      <button type="button" className="btn btn-primary btn-block" onClick={() => { setFormError(''); setForm(EMPTY_FORM); }}>
+        + Criar Novo Template
+      </button>
 
       <Segmented label="Filtrar por categoria" options={TABS} value={tab} onChange={setTab} />
 
-      <div className="card table-card">
-        <h2>Procedimentos Padronizados</h2>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Nome do Procedimento</th>
-                <th>Categoria</th>
-                <th className="center">Insumos</th>
-                <th className="right">Tempo Est.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visiveis.map((item) => (
-                <tr key={item.id}>
-                  <td><strong>{item.nome}</strong></td>
-                  <td>{item.categoria}</td>
-                  <td className="center">{item.insumosCount} itens</td>
-                  <td className="right accent-text">{item.tempoEstimado}</td>
+      {loading ? (
+        <p className="empty-text" role="status">Carregando templates…</p>
+      ) : loadError ? (
+        <p className="error-text" role="alert">{loadError}</p>
+      ) : (
+        <div className="card table-card">
+          <h2>Procedimentos Padronizados</h2>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome do Procedimento</th>
+                  <th>Categoria</th>
+                  <th className="center">Insumos</th>
+                  <th className="right">Tempo Est.</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {visiveis.length === 0 && <tr><td colSpan={4} className="empty-text">Nenhum template encontrado nesta categoria.</td></tr>}
+                {visiveis.map((item) => (
+                  <tr key={item.id}>
+                    <td><strong>{item.nome}</strong></td>
+                    <td>{item.categoria}</td>
+                    <td className="center">{item.insumos_count} itens</td>
+                    <td className="right accent-text">{item.tempo_estimado}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {form && (
+        <Modal
+          title="Criar Novo Template de Procedimento"
+          onClose={() => setForm(null)}
+          onSubmit={save}
+          footer={(
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setForm(null)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Salvando…' : 'Salvar'}</button>
+            </>
+          )}
+        >
+          <div className="form-group">
+            <Field label="Nome do Procedimento">
+              <input
+                type="text"
+                autoFocus
+                placeholder="Ex: Consulta Cardiológica, Castração..."
+                value={form.nome}
+                onChange={(event) => setForm({ ...form, nome: event.target.value })}
+              />
+            </Field>
+            <div className="field">
+              <span className="field-label">Categoria</span>
+              <Segmented label="Categoria" options={CATEGORIAS} value={form.categoria} onChange={(categoria) => setForm({ ...form, categoria })} />
+            </div>
+            <Field label="Tempo Estimado">
+              <input type="text" placeholder="Ex: 45 min" value={form.tempo} onChange={(event) => setForm({ ...form, tempo: event.target.value })} />
+            </Field>
+            <Field label="Quantidade de Insumos Vinculados">
+              <NumberInput min={0} placeholder="Ex: 4" value={form.insumos} onChange={(insumos) => setForm({ ...form, insumos })} />
+            </Field>
+            {formError && <p className="error-text" role="alert">{formError}</p>}
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

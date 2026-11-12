@@ -13,7 +13,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   if (!sessionLoaded) return <div className="page-loading" role="status">Carregando…</div>;
-  if (user) return <Navigate to="/" replace />;
+  // Durante o login espera a checagem do perfil (conta inativa sai sem entrar)
+  if (user && !loading) return <Navigate to="/" replace />;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -25,6 +26,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(identifier, password);
+      setLoading(false);
     } catch (loginError) {
       setError(friendlyError(loginError));
       setLoading(false);

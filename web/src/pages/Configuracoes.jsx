@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Field, NumberInput, SectionHeader } from '../components/ui';
 import { useAuth } from '../store/AuthContext';
 import { useData } from '../store/DataContext';
+import { supabase } from '../supabase';
 import { formatBRL } from '../utils/costCalculations';
 
 const withoutProfessionals = ({ externalProfessionals, ...rest }) => rest;
@@ -161,6 +162,7 @@ export default function Configuracoes() {
       </form>
 
       <SyncCard />
+      <ChangePasswordCard />
 
       <div className="card reset-card">
         <div>
@@ -216,5 +218,73 @@ function SyncCard() {
       {syncStatus.state === 'empty' && <p className="warning" role="status">{syncStatus.message}</p>}
       {syncStatus.state === 'error' && <p className="error-text" role="alert">{syncStatus.message}</p>}
     </div>
+  );
+}
+
+function ChangePasswordCard() {
+  const { user } = useAuth();
+  const [form, setForm] = useState({ current: '', next: '', confirm: '' });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [error, setError] = useState(null);
+
+  if (!user) return null;
+
+  const set = (key) => (event) => setForm({ ...form, [key]: event.target.value });
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setMessage(null);
+    setError(null);
+    if (!form.current || !form.next || !form.confirm) {
+      setError('Preencha todos os campos de senha.');
+      return;
+    }
+    if (form.next.length < 6) {
+      setError('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (form.next !== form.confirm) {
+      setError('A nova senha e a confirmação não coincidem.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Confirma a senha atual antes de trocar, como no app
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: user.email, password: form.current });
+      if (signInError) throw new Error('A senha atual está incorreta.');
+      const { error: updateError } = await supabase.auth.updateUser({ password: form.next });
+      if (updateError) throw updateError;
+      setMessage('Senha alterada com sucesso!');
+      setForm({ current: '', next: '', confirm: '' });
+    } catch (err) {
+      setError(err.message || 'Erro ao alterar a senha.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form className="card form-group" onSubmit={submit} noValidate>
+      <div>
+        <h2>Alterar senha</h2>
+        <p className="muted">Atualize sua senha de acesso ao sistema informando a senha atual e a nova senha.</p>
+      </div>
+      <Field label="Senha atual">
+        <input type="password" autoComplete="current-password" placeholder="Digite sua senha atual" value={form.current} onChange={set('current')} />
+      </Field>
+      <Field label="Nova senha">
+        <input type="password" autoComplete="new-password" placeholder="Mínimo de 6 caracteres" value={form.next} onChange={set('next')} />
+      </Field>
+      <Field label="Confirmar nova senha">
+        <input type="password" autoComplete="new-password" placeholder="Digite novamente a nova senha" value={form.confirm} onChange={set('confirm')} />
+      </Field>
+      <div className="inline">
+        <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Alterando…' : 'Atualizar senha'}</button>
+      </div>
+      {message && <p className="saved-text" role="status">✓ {message}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
+    </form>
   );
 }

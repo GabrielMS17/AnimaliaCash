@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 
 /** Cada seção tem sua cor de destaque, aplicada a botões, abas e filtros ativos (ver Layout). */
+// Mesma ordem da navegação do app; cada perfil vê só as telas liberadas para ele
 export const SECTIONS = [
-  { path: '/', label: 'Início', accent: '#00A86B', soft: '#D1FAE5' },
+  { path: '/cadastros', label: 'Cadastros', accent: '#0C2D48', soft: '#E2E8F0' },
+  { path: '/custos', label: 'Custos e Taxas', accent: '#0C2D48', soft: '#E2E8F0' },
+  { path: '/estoque', label: 'Estoque', accent: '#00A86B', soft: '#D1FAE5' },
+  { path: '/templates', label: 'Templates', accent: '#0C2D48', soft: '#E2E8F0' },
   { path: '/banho-tosa', label: 'Banho & Tosa', accent: '#0284C7', soft: '#E0F2FE' },
   { path: '/cirurgia', label: 'Cirurgias', accent: '#E11D48', soft: '#FFE4E6' },
   { path: '/internacao', label: 'Internação', accent: '#D97706', soft: '#FEF3C7' },
   { path: '/insumos', label: 'Insumos', accent: '#7C3AED', soft: '#EDE9FE' },
-  { path: '/estoque', label: 'Estoque', accent: '#00A86B', soft: '#D1FAE5' },
-  { path: '/templates', label: 'Templates', accent: '#00A86B', soft: '#D1FAE5' },
-  { path: '/custos', label: 'Custos e Taxas', accent: '#00A86B', soft: '#D1FAE5' },
-  { path: '/configuracoes', label: 'Configurações', accent: '#0C2D48', soft: '#E2E8F0' },
+  { path: '/configuracoes', label: 'Configurações', accent: '#0C2D48', soft: '#E2E8F0', hidden: true },
 ];
 
 export const CATEGORY_DOT = {

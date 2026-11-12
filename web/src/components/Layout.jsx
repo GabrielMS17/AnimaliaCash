@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
+import { canAccessRoute, landingRoute } from '../utils/accessControl';
 import { SECTIONS } from './ui';
 
 function UserMenu() {
@@ -40,6 +41,7 @@ function UserMenu() {
             <span>Conectado como</span>
             <strong>{user.email}</strong>
           </div>
+          <Link to="/configuracoes" className="user-dropdown-link" onClick={() => setOpen(false)}>Configurações</Link>
           <button type="button" onClick={leave}>Entrar com outro usuário</button>
           <button type="button" className="danger-text" onClick={leave}>Sair</button>
         </div>
@@ -48,15 +50,17 @@ function UserMenu() {
   );
 }
 
-/** Moldura das telas: cabeçalho, navegação entre módulos, conteúdo e rodapé. */
+/** Moldura das telas: cabeçalho, navegação dos módulos liberados para o perfil, conteúdo e rodapé. */
 export default function Layout() {
   const { pathname } = useLocation();
+  const { role } = useAuth();
   const section = SECTIONS.find((item) => item.path === pathname) ?? SECTIONS[0];
+  const navigationItems = SECTIONS.filter((item) => !item.hidden && canAccessRoute(role, item.path));
 
   return (
     <div className="app" style={{ '--accent': section.accent, '--accent-soft': section.soft }}>
       <header className="app-header">
-        <Link to="/" className="brand" aria-label="Ir para a tela inicial">
+        <Link to={landingRoute(role)} className="brand" aria-label="Ir para a tela inicial">
           <span className="brand-title">Animalia<em>Cash</em></span>
           <span className="brand-tagline">SOLUÇÕES FINANCEIRAS</span>
         </Link>
@@ -64,7 +68,7 @@ export default function Layout() {
       </header>
 
       <nav className="module-nav" aria-label="Módulos">
-        {SECTIONS.map((item) => (
+        {navigationItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
