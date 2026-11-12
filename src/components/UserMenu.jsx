@@ -51,6 +51,14 @@ export default function UserMenu() {
                 <Text style={styles.menuEmail} numberOfLines={1}>{email}</Text>
               </View>
             </View>
+            <Link href="/configuracoes" asChild>
+              <Pressable
+                onPress={() => setOpen(false)}
+                style={({ pressed }) => [styles.menuItem, styles.menuItemLink, pressed && styles.menuItemPressed]}
+              >
+                <Text style={[styles.menuItemText, styles.menuItemLinkText]}>Configurações</Text>
+              </Pressable>
+            </Link>
             <Pressable onPress={handleLogout} style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}>
               <Text style={styles.menuItemText}>Entrar com outro usuário</Text>
             </Pressable>
@@ -107,6 +115,8 @@ const styles = StyleSheet.create({
   menuLabel: { fontSize: 12, color: '#64748B' },
   menuEmail: { fontSize: 14, fontWeight: '600', color: '#0F172A' },
   menuItem: { paddingVertical: 11, paddingHorizontal: 16 },
+  menuItemLink: { width: '100%', paddingHorizontal: 0 },
+  menuItemLinkText: { marginLeft: 16 },
   menuItemPressed: { backgroundColor: '#F8FAFC' },
-  menuItemText: { fontSize: 14, color: '#334155', fontWeight: '500' },
+  menuItemText: { fontSize: 14, color: '#334155', fontWeight: '500', textAlign: 'left' },
 });

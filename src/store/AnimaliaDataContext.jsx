@@ -52,6 +52,9 @@ export function AnimaliaDataProvider({ children }) {
   const [data, setData] = useState(() => buildState({}));
   const [session, setSession] = useState(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [profileRole, setProfileRole] = useState(null);
+  const [profileRoleLoaded, setProfileRoleLoaded] = useState(false);
+  const [profileRoleUserId, setProfileRoleUserId] = useState(null);
   const [autoSync, setAutoSyncState] = useState(true);
   const [syncStatus, setSyncStatus] = useState({ state: 'idle' });
   // Conta alterações feitas pelo usuário; carregar ou baixar dados não dispara envio automático
@@ -64,6 +67,7 @@ export function AnimaliaDataProvider({ children }) {
   }, [data]);
 
   const userId = session?.user?.id ?? null;
+  const sessionMetadataRole = session?.user?.user_metadata?.role ?? null;
 
   useEffect(() => {
     (async () => {
@@ -87,6 +91,45 @@ export function AnimaliaDataProvider({ children }) {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!sessionLoaded) return undefined;
+    if (!userId) {
+      setProfileRole(null);
+      setProfileRoleUserId(null);
+      setProfileRoleLoaded(true);
+      return undefined;
+    }
+
+    let active = true;
+    setProfileRoleLoaded(false);
+
+    const loadProfileRole = async () => {
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (active) setProfileRole(profile?.role ?? sessionMetadataRole ?? 'Veterinário');
+      } catch (error) {
+        console.error('Erro ao carregar o perfil de acesso:', error);
+        if (active) setProfileRole(sessionMetadataRole ?? 'Veterinário');
+      } finally {
+        if (active) {
+          setProfileRoleUserId(userId);
+          setProfileRoleLoaded(true);
+        }
+      }
+    };
+
+    loadProfileRole();
+    return () => {
+      active = false;
+    };
+  }, [userId, sessionLoaded, sessionMetadataRole]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -264,6 +307,9 @@ export function AnimaliaDataProvider({ children }) {
 
       session,
       sessionLoaded,
+      role: profileRole,
+      roleLoaded: profileRoleLoaded,
+      roleUserId: profileRoleUserId,
       autoSync,
       setAutoSync: (enabled) => {
         setAutoSyncState(enabled);
@@ -273,7 +319,7 @@ export function AnimaliaDataProvider({ children }) {
       pushNow,
       pullNow,
     };
-  }, [data, loaded, session, sessionLoaded, autoSync, syncStatus, update, pushNow, pullNow]);
+  }, [data, loaded, session, sessionLoaded, profileRole, profileRoleLoaded, profileRoleUserId, autoSync, syncStatus, update, pushNow, pullNow]);
 
   return <AnimaliaDataContext.Provider value={value}>{children}</AnimaliaDataContext.Provider>;
 }

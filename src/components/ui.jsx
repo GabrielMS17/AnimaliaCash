@@ -30,11 +30,15 @@ export const COLORS = {
 
 /** Cada seção tem sua cor de destaque, aplicada a botões, abas e filtros ativos. */
 export const SECTIONS = {
+  custos: { label: 'Custos e Taxas', href: '/custos', accent: '#0C2D48', soft: '#E2E8F0' },
   banho_tosa: { label: 'Banho & Tosa', href: '/banho-tosa', accent: '#0284C7', soft: '#E0F2FE' },
   cirurgia: { label: 'Cirurgias', href: '/cirurgia', accent: '#E11D48', soft: '#FFE4E6' },
   internacao: { label: 'Internação', href: '/internacao', accent: '#D97706', soft: '#FEF3C7' },
+  estoque: { label: 'Estoque', href: '/estoque', accent: '#00A86B', soft: '#D1FAE5' },
   insumos: { label: 'Insumos', href: '/insumos', accent: '#7C3AED', soft: '#EDE9FE' },
   configuracoes: { label: 'Configurações', href: '/configuracoes', accent: '#0C2D48', soft: '#E2E8F0' },
+  cadastros: { label: 'Cadastros', href: '/cadastros', accent: '#0C2D48', soft: '#E2E8F0' },
+  templates: { label: 'Templates', href: '/templates', accent: '#0C2D48', soft: '#E2E8F0' },
 };
 
 export const CATEGORY_DOT = {

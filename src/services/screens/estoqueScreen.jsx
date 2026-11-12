@@ -9,11 +9,9 @@ import {
   View
 } from 'react-native';
 import { cadastrarProduto, listarProdutos, registrarEntradaLote } from '../../EstoqueService';
-import AppHeader from '../../components/AppHeader';
 import { notify } from '../../components/ui';
 
 export default function EstoqueScreen() {
-  const [menuAtivo, setMenuAtivo] = useState('estoque');
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -28,15 +26,6 @@ export default function EstoqueScreen() {
   const [numeroLote, setNumeroLote] = useState('');
   const [quantidade, setQuantidade] = useState('');
   const [valorTotal, setValorTotal] = useState('');
-
-  const modulos = [
-    { id: 'principal', label: 'Início' },
-    { id: 'atendimentos', label: 'Atendimentos' },
-    { id: 'estoque', label: 'Estoque' },
-    { id: 'financeiro', label: 'Financeiro' },
-    { id: 'fichas', label: 'Fichas Técnicas' },
-    { id: 'relatorios', label: 'Relatórios' },
-  ];
 
   useEffect(() => {
     carregarProdutos();
@@ -121,29 +110,9 @@ export default function EstoqueScreen() {
 
   return (
     <View style={styles.mainWrapper}>
-      <AppHeader />
-
-      {/* Menu com Módulos */}
-      <View style={styles.menuContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.menuScroll}>
-          {modulos.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.menuButton, menuAtivo === item.id && styles.menuButtonActive]}
-              onPress={() => setMenuAtivo(item.id)}
-            >
-              <Text style={[styles.menuText, menuAtivo === item.id && styles.menuTextActive]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
       {/* Conteúdo Principal */}
       <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
-        {menuAtivo === 'estoque' ? (
-          <>
+        <>
             <View style={styles.pageHeader}>
               <Text style={styles.sectionTitle}>Gestão de Estoque</Text>
             </View>
@@ -291,15 +260,7 @@ export default function EstoqueScreen() {
                 ))
               )}
             </View>
-          </>
-        ) : (
-          <View style={styles.placeholderContainer}>
-            <Text style={styles.placeholderTitle}>
-              Módulo {modulos.find(m => m.id === menuAtivo)?.label}
-            </Text>
-            <Text style={styles.placeholderSub}>Em desenvolvimento...</Text>
-          </View>
-        )}
+        </>
 
         {/* Rodapé Corporativo */}
         <View style={styles.footerContainer}>
@@ -317,16 +278,6 @@ const BG_LIGHT = '#F8FAFC';
 
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
-  menuContainer: {
-    backgroundColor: PRIMARY_DARK,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  menuScroll: { paddingHorizontal: 12, paddingBottom: 12 },
-  menuButton: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, marginRight: 6 },
-  menuButtonActive: { backgroundColor: ACCENT_GREEN },
-  menuText: { color: '#94A3B8', fontSize: 13, fontWeight: '600' },
-  menuTextActive: { color: '#FFFFFF', fontWeight: '700' },
   container: { flex: 1 },
   contentPadding: { padding: 16, paddingBottom: 32 },
   pageHeader: { marginBottom: 16 },
@@ -411,18 +362,6 @@ const styles = StyleSheet.create({
   prodDetail: { fontSize: 12, color: '#64748B' },
   prodCost: { fontSize: 12, color: ACCENT_GREEN },
   bold: { fontWeight: '700', color: PRIMARY_DARK },
-  placeholderContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginVertical: 20,
-  },
-  placeholderTitle: { fontSize: 18, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 6 },
-  placeholderSub: { fontSize: 13, color: '#94A3B8' },
   footerContainer: { marginTop: 24, paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#E2E8F0', alignItems: 'center' },
   footerText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
   footerSubtext: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
