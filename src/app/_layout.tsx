@@ -34,7 +34,7 @@ function AuthGate() {
       router.replace('/Login');
     } else if (session && roleLoadedForSession) {
       if (inAuthGroup || !canAccessRoute(role, currentRoute)) {
-        router.replace(role === 'Veterinário' ? '/banho-tosa' : '/');
+        router.replace(role === 'Veterinário' ? '/banho-tosa' : '/cadastros');
       }
     }
   }, [session, sessionLoaded, role, roleLoadedForSession, currentRoute, segments, router]);

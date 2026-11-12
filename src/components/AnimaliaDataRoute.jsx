@@ -1,5 +1,4 @@
-import { Link } from 'expo-router';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
 import InsumosPage from './InsumosPage';
 import ProceduresPage from './ProceduresPage';
@@ -9,34 +8,16 @@ import AppHeader from './AppHeader';
 import EstoqueScreen from '../services/screens/estoqueScreen';
 import CadastrosScreen from '../services/screens/cadastros';
 import { supabase } from '../supabase';
-import { canAccessRoute } from '../utils/accessControl';
 
-const SECTION_ORDER = ['custos', 'banho_tosa', 'cirurgia', 'internacao', 'estoque', 'insumos', 'cadastros'];
-
-/** Moldura dos módulos de custos: cabeçalho, navegação entre módulos e o conteúdo da seção. */
+/** Moldura compartilhada dos módulos de dados e do conteúdo da seção. */
 export default function AnimaliaDataRoute({ section }) {
   const current = SECTIONS[section];
-  const { loaded, role } = useAnimaliaData();
-  const visibleSections = SECTION_ORDER.filter((id) => canAccessRoute(role, SECTIONS[id].href));
+  const { loaded } = useAnimaliaData();
 
   return (
     <AccentProvider value={current}>
       <View style={styles.mainWrapper}>
         <AppHeader />
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.moduleNav} contentContainerStyle={styles.moduleNavContent}>
-          {visibleSections.map((id) => {
-            const item = SECTIONS[id];
-            const active = id === section;
-            return (
-              <Link key={id} href={item.href} asChild>
-                <TouchableOpacity style={StyleSheet.flatten([styles.moduleLink, active && { borderBottomColor: item.accent }])}>
-                  <Text style={[styles.moduleLinkText, active && { color: PRIMARY_DARK, fontWeight: '700' }]}>{item.label}</Text>
-                </TouchableOpacity>
-              </Link>
-            );
-          })}
-        </ScrollView>
 
         {section === 'estoque' ? (
           <EstoqueScreen />
@@ -64,25 +45,10 @@ export default function AnimaliaDataRoute({ section }) {
   );
 }
 
-const PRIMARY_DARK = '#0C2D48';
 const BG_LIGHT = '#F8FAFC';
 
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
-  moduleNav: {
-    flexGrow: 0,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  moduleNavContent: { paddingHorizontal: 12, gap: 4 },
-  moduleLink: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-  },
-  moduleLinkText: { fontSize: 14, color: '#64748B', fontWeight: '500' },
   container: { flex: 1 },
   contentPadding: { padding: 16, paddingBottom: 32 },
   content: { width: '100%', maxWidth: 1180, alignSelf: 'center' },

@@ -38,6 +38,7 @@ export const SECTIONS = {
   insumos: { label: 'Insumos', href: '/insumos', accent: '#7C3AED', soft: '#EDE9FE' },
   configuracoes: { label: 'Configurações', href: '/configuracoes', accent: '#0C2D48', soft: '#E2E8F0' },
   cadastros: { label: 'Cadastros', href: '/cadastros', accent: '#0C2D48', soft: '#E2E8F0' },
+  templates: { label: 'Templates', href: '/templates', accent: '#0C2D48', soft: '#E2E8F0' },
 };
 
 export const CATEGORY_DOT = {

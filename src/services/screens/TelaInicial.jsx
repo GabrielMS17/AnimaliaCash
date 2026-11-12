@@ -5,13 +5,14 @@ import { useAnimaliaData } from '../../store/AnimaliaDataContext';
 import { canAccessRoute } from '../../utils/accessControl';
 
 const menuItems = [
+  { href: '/cadastros', titulo: 'Cadastros', descricao: 'Gerencie os acessos e perfis dos colaboradores' },
   { href: '/custos', titulo: 'Custos e Taxas', descricao: 'Gerencie custos fixos, custos variáveis e taxas de pagamento' },
+  { href: '/estoque', titulo: 'Estoque', descricao: 'Produtos, entrada de lotes e custo médio' },
+  { href: '/templates', titulo: 'Templates', descricao: 'Gerencie templates e fichas técnicas de procedimentos' },
   { href: '/cirurgia', titulo: 'Cirurgias', descricao: 'Custo de cada cirurgia por peso, com insumos e terceirizados' },
   { href: '/internacao', titulo: 'Internação', descricao: 'Custo das diárias de internação por porte do animal' },
   { href: '/banho-tosa', titulo: 'Banho & Tosa', descricao: 'Custo de cada serviço de estética por porte' },
   { href: '/insumos', titulo: 'Insumos', descricao: 'Materiais e medicamentos com custo unitário' },
-  { href: '/estoque', titulo: 'Estoque', descricao: 'Produtos, entrada de lotes e custo médio' },
-  { href: '/cadastros', titulo: 'Cadastros', descricao: 'Gerencie os acessos e perfis dos colaboradores' },
 ];
 
 export default function TelaInicial() {
