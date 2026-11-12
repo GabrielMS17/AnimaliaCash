@@ -9,7 +9,6 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import AppHeader from '../../components/AppHeader';
 import { supabase } from '../../supabase';
 
 export default function CadastrosScreen() {
@@ -161,8 +160,6 @@ export default function CadastrosScreen() {
 
   return (
     <View style={styles.mainWrapper}>
-      <AppHeader />
-
       <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
         {/* Banner de Cabeçalho */}
         <View style={styles.heroBanner}>

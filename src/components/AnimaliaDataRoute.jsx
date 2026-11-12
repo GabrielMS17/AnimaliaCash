@@ -9,13 +9,15 @@ import AppHeader from './AppHeader';
 import EstoqueScreen from '../services/screens/estoqueScreen';
 import CadastrosScreen from '../services/screens/cadastros';
 import { supabase } from '../supabase';
+import { canAccessRoute } from '../utils/accessControl';
 
-const SECTION_ORDER = ['banho_tosa', 'cirurgia', 'internacao', 'estoque', 'insumos', 'cadastros'];
+const SECTION_ORDER = ['custos', 'banho_tosa', 'cirurgia', 'internacao', 'estoque', 'insumos', 'cadastros'];
 
 /** Moldura dos módulos de custos: cabeçalho, navegação entre módulos e o conteúdo da seção. */
 export default function AnimaliaDataRoute({ section }) {
   const current = SECTIONS[section];
-  const { loaded } = useAnimaliaData();
+  const { loaded, role } = useAnimaliaData();
+  const visibleSections = SECTION_ORDER.filter((id) => canAccessRoute(role, SECTIONS[id].href));
 
   return (
     <AccentProvider value={current}>
@@ -23,7 +25,7 @@ export default function AnimaliaDataRoute({ section }) {
         <AppHeader />
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.moduleNav} contentContainerStyle={styles.moduleNavContent}>
-          {SECTION_ORDER.map((id) => {
+          {visibleSections.map((id) => {
             const item = SECTIONS[id];
             const active = id === section;
             return (

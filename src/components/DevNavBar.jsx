@@ -1,6 +1,7 @@
 import { Link, usePathname } from 'expo-router';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
+import { canAccessRoute } from '../utils/accessControl';
 
 const navItems = [
   { href: '/Login', label: 'Login' },
@@ -19,9 +20,10 @@ const navItems = [
 // Barra de navegação rápida (Dev), exibida em todas as rotas pelo _layout
 export default function DevNavBar() {
   const pathname = usePathname();
-  const { session } = useAnimaliaData();
-  // Com alguém logado, o acesso ao login fica no avatar do cabeçalho
-  const items = session ? navItems.filter((item) => item.href !== '/Login') : navItems;
+  const { session, role } = useAnimaliaData();
+  const items = session
+    ? navItems.filter((item) => item.href !== '/Login' && canAccessRoute(role, item.href))
+    : navItems.filter((item) => item.href === '/Login');
 
   return (
     <View style={styles.devBarContainer}>

@@ -34,6 +34,10 @@ export default function LoginScreen({ onLoginSuccess }) {
     }
 
     setLoading(true);
+    const rejectAuthenticatedSession = async () => {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) console.error('Erro ao encerrar uma sessão sem permissões:', signOutError);
+    };
 
     let emailInput = identifier.trim();
     if (!emailInput.includes('@')) {
@@ -57,12 +61,21 @@ export default function LoginScreen({ onLoginSuccess }) {
           .from('profiles')
           .select('status, role')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
-        // Se encontrar o perfil e ele estiver inativo, bloqueia o acesso
-        if (profile && profile.status === 'Inativo') {
-          await supabase.auth.signOut(); // Desconecta imediatamente
+        if (profileError) {
+          console.error('Erro ao consultar o perfil após autenticação:', profileError);
+        }
+
+        if (profile?.status === 'Inativo') {
+          await rejectAuthenticatedSession();
           throw new Error('Acesso negado. Esta conta encontra-se inativa no sistema.');
+        }
+
+        const role = profile?.role ?? user.user_metadata?.role ?? 'Veterinário';
+        if (role !== 'Administrador' && role !== 'Veterinário') {
+          await rejectAuthenticatedSession();
+          throw new Error('Não foi possível identificar seu perfil de acesso. Solicite ajuda a um administrador.');
         }
       }
 
