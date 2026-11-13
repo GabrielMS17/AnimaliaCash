@@ -133,12 +133,13 @@ const styles = StyleSheet.create({
     color: ACCENT_GREEN,
   },
   footerContainer: {
+    width: '100%',
     marginTop: 24,
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     alignItems: 'center',
   },
-  footerText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
-  footerSubtext: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  footerText: { width: '100%', fontSize: 11, lineHeight: 15, fontWeight: '600', color: '#64748B', textAlign: 'center' },
+  footerSubtext: { width: '100%', fontSize: 10, lineHeight: 14, color: '#94A3B8', marginTop: 2, textAlign: 'center' },
 });

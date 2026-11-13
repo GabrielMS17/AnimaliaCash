@@ -245,22 +245,12 @@ export default function CadastrosScreen() {
                           </Text>
                         </View>
                       </View>
-
-                      {/* Botão de Ativar/Desativar */}
-                      <TouchableOpacity
-                        style={[styles.statusToggleBtn, isInactive ? styles.btnActivate : styles.btnDeactivate]}
-                        onPress={() => handleToggleStatus(p.id, p.status)}
-                      >
-                        <Text style={[styles.statusToggleText, isInactive ? styles.textActivate : styles.textDeactivate]}>
-                          {isInactive ? 'Ativar' : 'Desativar'}
-                        </Text>
-                      </TouchableOpacity>
                     </View>
 
-                    <Text style={[styles.profileName, isInactive && styles.textStrikethrough]} numberOfLines={1}>
+                    <Text style={[styles.profileName, isInactive && styles.textStrikethrough]}>
                       {p.nome}
                     </Text>
-                    <Text style={styles.profileEmail} numberOfLines={1}>{p.email || 'E-mail não registado'}</Text>
+                    <Text style={styles.profileEmail}>{p.email || 'E-mail não registado'}</Text>
 
                     {/* Exibe o CRMV se for Veterinário */}
                     {p.role === 'Veterinário' && (
@@ -269,6 +259,15 @@ export default function CadastrosScreen() {
                         <Text style={styles.crmvValue}>{p.crmv ? p.crmv : 'Não informado'}</Text>
                       </View>
                     )}
+
+                    <TouchableOpacity
+                      style={[styles.statusToggleBtn, isInactive ? styles.btnActivate : styles.btnDeactivate]}
+                      onPress={() => handleToggleStatus(p.id, p.status)}
+                    >
+                      <Text style={[styles.statusToggleText, isInactive ? styles.textActivate : styles.textDeactivate]}>
+                        {isInactive ? 'Ativar' : 'Desativar'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               );
@@ -505,22 +504,28 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   cardIndicator: { width: 6 },
-  cardContentInner: { flex: 1, padding: 16 },
+  cardContentInner: { flex: 1, minWidth: 0, padding: 16 },
   cardTopRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
     marginBottom: 10,
   },
   cardTopLeft: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 10,
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    flexShrink: 0,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
@@ -531,10 +536,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
   },
   avatarText: { color: PRIMARY_DARK, fontSize: 16, fontWeight: '800' },
-  roleBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1 },
-  roleBadgeText: { fontSize: 11, fontWeight: '700' },
+  roleBadge: { maxWidth: '100%', flexShrink: 1, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1 },
+  roleBadgeText: { fontSize: 11, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   
   statusToggleBtn: {
+    alignSelf: 'flex-end',
+    marginTop: 10,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -559,18 +566,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  profileName: { fontSize: 16, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 2 },
+  profileName: { fontSize: 16, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 2, flexShrink: 1 },
   textStrikethrough: { color: '#64748B', textDecorationLine: 'line-through' },
-  profileEmail: { fontSize: 13, color: '#64748B', marginBottom: 8 },
+  profileEmail: { fontSize: 13, color: '#64748B', marginBottom: 8, flexShrink: 1 },
   cardFooterRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
+    gap: 4,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     paddingTop: 8,
   },
   crmvLabel: { fontSize: 12, color: '#64748B', fontWeight: '600', marginRight: 6 },
-  crmvValue: { fontSize: 12, color: PRIMARY_DARK, fontWeight: '700' },
+  crmvValue: { fontSize: 12, color: PRIMARY_DARK, fontWeight: '700', flexShrink: 1 },
 
   emptyCard: {
     backgroundColor: '#FFFFFF',
@@ -674,12 +683,13 @@ const styles = StyleSheet.create({
   },
 
   footerContainer: {
+    width: '100%',
     marginTop: 24,
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     alignItems: 'center',
   },
-  footerText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
-  footerSubtext: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  footerText: { width: '100%', fontSize: 11, lineHeight: 15, fontWeight: '600', color: '#64748B', textAlign: 'center' },
+  footerSubtext: { width: '100%', fontSize: 10, lineHeight: 14, color: '#94A3B8', marginTop: 2, textAlign: 'center' },
 });

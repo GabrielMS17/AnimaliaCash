@@ -212,23 +212,29 @@ export function Select({ value, options, onChange, placeholder = 'Selecione', st
   );
 }
 
-/** Grupo de botões de filtro/opção, com rolagem horizontal em telas estreitas. */
-export function Segmented({ options, value, onChange }) {
+/** Grupo de botões de filtro/opção que quebra em múltiplas linhas por padrão. */
+export function Segmented({ options, value, onChange, wrap = true }) {
   const accent = useAccent();
+  const segments = options.map((option) => {
+    const active = option.value === value;
+    return (
+      <Pressable
+        key={option.value}
+        onPress={() => onChange(option.value)}
+        style={[styles.segment, active && { backgroundColor: COLORS.card, borderColor: accent.accent }]}
+      >
+        <Text style={[styles.segmentText, active && { color: COLORS.text, fontWeight: '700' }]}>{option.label}</Text>
+      </Pressable>
+    );
+  });
+
+  if (wrap) {
+    return <View style={[styles.segmented, styles.segmentedWrap]}>{segments}</View>;
+  }
+
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segmented}>
-      {options.map((option) => {
-        const active = option.value === value;
-        return (
-          <Pressable
-            key={option.value}
-            onPress={() => onChange(option.value)}
-            style={[styles.segment, active && { backgroundColor: COLORS.card, borderColor: accent.accent }]}
-          >
-            <Text style={[styles.segmentText, active && { color: COLORS.text, fontWeight: '700' }]}>{option.label}</Text>
-          </Pressable>
-        );
-      })}
+      {segments}
     </ScrollView>
   );
 }
@@ -346,6 +352,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#E2E8F099',
     borderRadius: 10,
   },
+  segmentedWrap: { flexWrap: 'wrap', width: '100%' },
   segment: {
     paddingVertical: 6,
     paddingHorizontal: 12,

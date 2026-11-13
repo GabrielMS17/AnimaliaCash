@@ -97,6 +97,7 @@ export interface ClinicSettings {
   defaultVetCommissionSurgeryPercent?: number; // Comissão padrão do cirurgião (% ex: 25%)
   defaultVetCommissionInternmentPercent?: number; // Comissão padrão do plantonista/internista (% ex: 20%)
   defaultVetCommissionBathPercent?: number; // Comissão padrão do tosador/banhista (% ex: 15%)
+  averageProductWastePercent: number; // Taxa média de desperdício informativa (%)
   includeLaborInCost: boolean;
 }
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import {
   calculateProcedure,
   formatBRL,
@@ -57,6 +57,8 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
   const category = procedure?.category ?? defaultCategory;
   const isEditing = Boolean(procedure);
   const isWide = useIsWide(900);
+  const { width } = useWindowDimensions();
+  const isCompact = width < 400;
 
   const [procedureId] = useState(() => procedure?.id ?? `proc_${Date.now()}`);
   const [tab, setTab] = useState('geral');
@@ -228,14 +230,23 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
       maxWidth={980}
       onClose={onClose}
       footer={
-        <View style={styles.footer}>
+        <View style={[styles.footer, isCompact && styles.footerCompact]}>
           <View>
             <Text style={styles.small}>Custo total</Text>
             <Text style={styles.footerTotal}>{formatBRL(breakdown.totalCost)}</Text>
           </View>
-          <View style={styles.footerButtons}>
-            <Button label="Cancelar" variant="secondary" onPress={onClose} />
-            <Button label={isEditing ? 'Salvar alterações' : 'Criar procedimento'} onPress={handleSave} />
+          <View style={[styles.footerButtons, isCompact && styles.footerButtonsCompact]}>
+            <Button
+              label="Cancelar"
+              variant="secondary"
+              onPress={onClose}
+              style={isCompact ? styles.footerButtonCompact : undefined}
+            />
+            <Button
+              label={isEditing ? 'Salvar alterações' : 'Criar procedimento'}
+              onPress={handleSave}
+              style={isCompact ? styles.footerButtonCompact : undefined}
+            />
           </View>
         </View>
       }
@@ -269,11 +280,11 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
           )}
 
           <View style={[styles.grid, isWide && styles.row]}>
-            <Field label="Peso do animal" style={styles.cell}>
+            <Field label="Peso do animal" style={[styles.cell, isWide && styles.cellWide]}>
               <NumberInput suffix="kg" min={0} value={targetWeightKg} onChange={setTargetWeightKg} />
             </Field>
             {category === 'internacao' ? (
-              <Field label="Duração" style={styles.cell}>
+              <Field label="Duração" style={[styles.cell, isWide && styles.cellWide]}>
                 <NumberInput
                   suffix="diárias"
                   min={0.25}
@@ -282,12 +293,16 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
                 />
               </Field>
             ) : (
-              <Field label="Duração" style={styles.cell}>
+              <Field label="Duração" style={[styles.cell, isWide && styles.cellWide]}>
                 <NumberInput suffix="min" min={1} value={durationMinutes} onChange={setDurationMinutes} />
               </Field>
             )}
             {category === 'internacao' && (
-              <Field label="Tempo de atendimento" hint="Horas da equipe no período; é o que entra no custo operacional." style={styles.cell}>
+              <Field
+                label="Tempo de atendimento"
+                hint="Horas da equipe no período; é o que entra no custo operacional."
+                style={[styles.cell, isWide && styles.cellWide]}
+              >
                 <NumberInput
                   suffix="h"
                   min={0}
@@ -314,7 +329,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
       {tab === 'insumos' && (
         <View style={[styles.grid, isWide && styles.row]}>
           {/* Catálogo: insumos da mesma categoria do procedimento */}
-          <View style={styles.cell}>
+          <View style={[styles.cell, isWide && styles.cellWide]}>
             <View style={styles.listHeader}>
               <Text style={styles.heading}>
                 Insumos de {getCategoryLabel(category)} <Text style={styles.small}>({categoryInsumos.length})</Text>
@@ -354,7 +369,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
           </View>
 
           {/* Itens já adicionados ao procedimento */}
-          <View style={styles.cell}>
+          <View style={[styles.cell, isWide && styles.cellWide]}>
             <Text style={[styles.heading, { marginBottom: 8 }]}>
               Adicionados <Text style={styles.small}>({items.length})</Text>
             </Text>
@@ -363,8 +378,8 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
                 {items.map((item, index) => {
                   const insumo = insumosMap.get(item.insumoId);
                   return (
-                    <View key={`${item.insumoId}-${index}`} style={styles.addedRow}>
-                      <View style={{ flex: 1, minWidth: 0 }}>
+                    <View key={`${item.insumoId}-${index}`} style={[styles.addedRow, isCompact && styles.addedRowCompact]}>
+                      <View style={[styles.addedItemDetails, isCompact && styles.addedItemDetailsCompact]}>
                         <Text style={[styles.itemName, !insumo && { color: COLORS.warning }]} numberOfLines={1}>
                           {insumo ? insumo.name : `⚠ Não encontrado (${item.insumoId})`}
                         </Text>
@@ -375,15 +390,17 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
                           style={styles.noteInput}
                         />
                       </View>
-                      <NumberInput
-                        min={0}
-                        suffix={insumo?.unit ?? ''}
-                        value={item.quantity}
-                        onChange={(quantity) => updateItem(index, { quantity })}
-                        style={{ width: 96 }}
-                      />
-                      <Text style={styles.itemCost}>{formatBRL((item.quantity || 0) * (insumo?.costPerUnit ?? 0))}</Text>
-                      <Button small variant="danger" label="✕" onPress={() => setItems((prev) => prev.filter((_, i) => i !== index))} />
+                      <View style={styles.addedItemControls}>
+                        <NumberInput
+                          min={0}
+                          suffix={insumo?.unit ?? ''}
+                          value={item.quantity}
+                          onChange={(quantity) => updateItem(index, { quantity })}
+                          style={{ width: 96 }}
+                        />
+                        <Text style={styles.itemCost}>{formatBRL((item.quantity || 0) * (insumo?.costPerUnit ?? 0))}</Text>
+                        <Button small variant="danger" label="✕" onPress={() => setItems((prev) => prev.filter((_, i) => i !== index))} />
+                      </View>
                     </View>
                   );
                 })}
@@ -475,15 +492,15 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
                 <Field label="Profissional">
                   <Input value={vetCommissionRole} onChangeText={setVetCommissionRole} />
                 </Field>
-                <View style={[styles.grid, styles.row]}>
-                  <Field label="Tipo" style={styles.cell}>
+                <View style={[styles.grid, isWide && styles.row]}>
+                  <Field label="Tipo" style={[styles.cell, isWide && styles.cellWide]}>
                     <Segmented
                       options={[{ value: 'percent', label: 'Percentual' }, { value: 'fixed', label: 'Valor fixo' }]}
                       value={vetCommissionType}
                       onChange={setVetCommissionType}
                     />
                   </Field>
-                  <Field label={vetCommissionType === 'percent' ? 'Percentual' : 'Valor'} style={styles.cell}>
+                  <Field label={vetCommissionType === 'percent' ? 'Percentual' : 'Valor'} style={[styles.cell, isWide && styles.cellWide]}>
                     {vetCommissionType === 'percent' ? (
                       <NumberInput suffix="%" min={0} max={100} value={vetCommissionValue} onChange={setVetCommissionValue} />
                     ) : (
@@ -621,16 +638,20 @@ function QuickCreateInsumo({ category, onCancel, onCreate }) {
 
 const styles = StyleSheet.create({
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
+  footerCompact: { flexDirection: 'column', alignItems: 'stretch' },
   footerTotal: { fontSize: 19, fontWeight: '800', color: COLORS.text },
   footerButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' },
+  footerButtonsCompact: { flexDirection: 'column', alignItems: 'stretch', width: '100%' },
+  footerButtonCompact: { width: '100%' },
   stack: { gap: 14 },
   grid: { gap: 16 },
   row: { flexDirection: 'row', alignItems: 'flex-start' },
-  cell: { flex: 1, minWidth: 0 },
+  cell: { minWidth: 0 },
+  cellWide: { flex: 1 },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: -6 },
-  chip: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: '#F1F5F9' },
-  chipText: { fontSize: 12, color: COLORS.textSoft },
+  chips: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: -6 },
+  chip: { maxWidth: '100%', flexShrink: 1, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: '#F1F5F9' },
+  chipText: { fontSize: 12, color: COLORS.textSoft, flexShrink: 1 },
   heading: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   small: { fontSize: 12, color: COLORS.muted, fontWeight: '400' },
   listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
@@ -656,6 +677,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
+  addedRowCompact: { flexDirection: 'column', alignItems: 'stretch' },
+  addedItemDetails: { flex: 1, minWidth: 0 },
+  addedItemDetailsCompact: { width: '100%' },
+  addedItemControls: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' },
   itemName: { fontSize: 14, color: COLORS.text },
   noteInput: { borderWidth: 0, paddingHorizontal: 0, paddingVertical: 2, fontSize: 12, color: COLORS.muted, backgroundColor: 'transparent' },
   itemCost: { width: 78, textAlign: 'right', fontSize: 13, fontWeight: '600', color: COLORS.text },

@@ -2,17 +2,27 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
 import { formatUnitCost, getCategoryLabel } from '../utils/costCalculations';
+import { VETERINARIAN_ROLE } from '../utils/accessControl';
 import InsumoModal, { CATEGORY_OPTIONS, describePackage } from './InsumoModal';
 import { Button, CATEGORY_DOT, COLORS, confirmAction, Input, SectionHeader, Segmented, useIsWide } from './ui';
 
-const FILTERS = [{ value: 'todos', label: 'Todos' }, ...CATEGORY_OPTIONS];
-
 export default function InsumosPage() {
-  const { insumos, procedures, saveInsumo, deleteInsumo } = useAnimaliaData();
+  const { insumos, procedures, saveInsumo, deleteInsumo, role } = useAnimaliaData();
   const isWide = useIsWide();
+  const isVeterinarian = role === VETERINARIAN_ROLE;
+  const categoryOptions = isVeterinarian
+    ? CATEGORY_OPTIONS.filter((option) => option.value !== 'banho_tosa')
+    : CATEGORY_OPTIONS;
+  const filterOptions = [{ value: 'todos', label: 'Todos' }, ...categoryOptions];
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('todos');
   const [editing, setEditing] = useState(null); // null = fechado, {} = novo, insumo = edição
+
+  const availableInsumos = useMemo(
+    () => isVeterinarian ? insumos.filter((insumo) => insumo.category !== 'banho_tosa') : insumos,
+    [insumos, isVeterinarian],
+  );
+  const activeFilterCategory = isVeterinarian && filterCategory === 'banho_tosa' ? 'todos' : filterCategory;
 
   // Quantos procedimentos usam cada insumo
   const usageCount = useMemo(() => {
@@ -25,11 +35,11 @@ export default function InsumosPage() {
 
   const filtered = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    return insumos
-      .filter((insumo) => filterCategory === 'todos' || insumo.category === filterCategory)
+    return availableInsumos
+      .filter((insumo) => activeFilterCategory === 'todos' || insumo.category === activeFilterCategory)
       .filter((insumo) => !query || insumo.name.toLowerCase().includes(query) || (insumo.notes ?? '').toLowerCase().includes(query))
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-  }, [insumos, searchTerm, filterCategory]);
+  }, [availableInsumos, searchTerm, activeFilterCategory]);
 
   const handleDelete = async (insumo) => {
     const count = usageCount.get(insumo.id) || 0;
@@ -49,12 +59,12 @@ export default function InsumosPage() {
 
       <View style={[styles.filters, isWide && styles.filtersWide]}>
         <View style={{ flexShrink: 1 }}>
-          <Segmented options={FILTERS} value={filterCategory} onChange={setFilterCategory} />
+          <Segmented options={filterOptions} value={activeFilterCategory} onChange={setFilterCategory} wrap />
         </View>
         <Input placeholder="Buscar insumo" value={searchTerm} onChangeText={setSearchTerm} style={isWide && { width: 260 }} />
       </View>
 
-      <Text style={styles.count}>{filtered.length} de {insumos.length} insumos</Text>
+      <Text style={styles.count}>{filtered.length} de {availableInsumos.length} insumos</Text>
 
       <View style={styles.list}>
         {filtered.map((insumo) => {
@@ -62,7 +72,7 @@ export default function InsumosPage() {
           const pkg = describePackage(insumo);
           return (
             <View key={insumo.id} style={[styles.row, isWide && styles.rowWide]}>
-              <View style={{ flex: 2, minWidth: 0 }}>
+              <View style={[styles.infoCol, isWide && styles.infoColWide]}>
                 <Text style={styles.name}>{insumo.name}</Text>
                 {insumo.notes ? <Text style={styles.notes}>{insumo.notes}</Text> : null}
                 <View style={styles.categoryRow}>
@@ -73,7 +83,7 @@ export default function InsumosPage() {
                   </Text>
                 </View>
               </View>
-              <View style={[styles.costCol, isWide && { alignItems: 'flex-end' }]}>
+              <View style={[styles.costCol, isWide && styles.costColWide]}>
                 <Text style={styles.cost}>
                   {formatUnitCost(insumo.costPerUnit)}
                   <Text style={styles.unit}> / {insumo.unit}</Text>
@@ -93,6 +103,7 @@ export default function InsumosPage() {
       {editing && (
         <InsumoModal
           insumo={editing.id ? editing : null}
+          categoryOptions={categoryOptions}
           onClose={() => setEditing(null)}
           onSave={(saved) => {
             saveInsumo(saved);
@@ -116,6 +127,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   row: {
+    flexDirection: 'column',
     gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -123,13 +135,16 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   rowWide: { flexDirection: 'row', alignItems: 'center' },
+  infoCol: { minWidth: 0 },
+  infoColWide: { flex: 2 },
+  costCol: { alignItems: 'flex-start', minWidth: 0 },
+  costColWide: { flex: 1, alignItems: 'flex-end' },
   name: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   notes: { fontSize: 12, color: COLORS.muted, marginTop: 2 },
   categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 2 },
-  costCol: { flex: 1 },
-  cost: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  cost: { fontSize: 14, fontWeight: '600', color: COLORS.text, flexShrink: 1 },
   unit: { fontWeight: '400', color: COLORS.faint },
-  actions: { flexDirection: 'row', gap: 6 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignSelf: 'flex-start' },
   empty: { padding: 32, textAlign: 'center', color: COLORS.muted },
 });

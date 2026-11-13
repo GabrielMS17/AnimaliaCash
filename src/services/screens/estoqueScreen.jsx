@@ -24,6 +24,7 @@ export default function EstoqueScreen() {
   // Form Lote
   const [produtoSelecionadoId, setProdutoSelecionadoId] = useState('');
   const [numeroLote, setNumeroLote] = useState('');
+  const [validadeLote, setValidadeLote] = useState('');
   const [quantidade, setQuantidade] = useState('');
   const [valorTotal, setValorTotal] = useState('');
 
@@ -78,6 +79,10 @@ export default function EstoqueScreen() {
       notify('Atenção', 'Selecione um produto e preencha a quantidade e valor total.');
       return;
     }
+    if (!validadeLote.trim()) {
+      notify('Atenção', 'Informe a validade do lote.');
+      return;
+    }
 
     const qtdNum = parseFloat(quantidade.toString().replace(',', '.'));
     const valorNum = parseFloat(valorTotal.toString().replace(',', '.'));
@@ -87,17 +92,36 @@ export default function EstoqueScreen() {
       return;
     }
 
+    const match = validadeLote.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) {
+      notify('Atenção', 'Informe a validade no formato DD/MM/AAAA.');
+      return;
+    }
+
+    const [, dia, mes, ano] = match;
+    const dataValidade = `${ano}-${mes}-${dia}`;
+    const dataConvertida = new Date(`${dataValidade}T00:00:00.000Z`);
+    if (
+      Number.isNaN(dataConvertida.getTime()) ||
+      dataConvertida.toISOString().slice(0, 10) !== dataValidade
+    ) {
+      notify('Atenção', 'Informe uma data de validade válida.');
+      return;
+    }
+
     try {
       setLoading(true);
       await registrarEntradaLote({
         produto_id: produtoSelecionadoId,
         numero_lote: numeroLote,
+        data_validade: dataValidade,
         quantidade_adquirida: qtdNum,
         valor_total_lote: valorNum,
       });
 
       notify('Sucesso', 'Lote registrado e Custo Médio recalculado!');
       setNumeroLote('');
+      setValidadeLote('');
       setQuantidade('');
       setValorTotal('');
       carregarProdutos();
@@ -202,6 +226,15 @@ export default function EstoqueScreen() {
                 placeholderTextColor="#94A3B8"
                 value={numeroLote} 
                 onChangeText={setNumeroLote} 
+              />
+
+              <Text style={styles.inputLabel}>Validade do Lote *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: 31/12/2026"
+                placeholderTextColor="#94A3B8"
+                value={validadeLote}
+                onChangeText={setValidadeLote}
               />
 
               <Text style={styles.inputLabel}>Quantidade Adquirida</Text>
@@ -362,7 +395,7 @@ const styles = StyleSheet.create({
   prodDetail: { fontSize: 12, color: '#64748B' },
   prodCost: { fontSize: 12, color: ACCENT_GREEN },
   bold: { fontWeight: '700', color: PRIMARY_DARK },
-  footerContainer: { marginTop: 24, paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#E2E8F0', alignItems: 'center' },
-  footerText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
-  footerSubtext: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  footerContainer: { width: '100%', marginTop: 24, paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#E2E8F0', alignItems: 'center' },
+  footerText: { width: '100%', fontSize: 11, lineHeight: 15, fontWeight: '600', color: '#64748B', textAlign: 'center' },
+  footerSubtext: { width: '100%', fontSize: 10, lineHeight: 14, color: '#94A3B8', marginTop: 2, textAlign: 'center' },
 });

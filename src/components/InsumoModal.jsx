@@ -47,7 +47,7 @@ export function describePackage(insumo) {
   return `${type} com ${formatDecimal(insumo.packageSize, 3)} ${insumo.unit} · ${formatBRL(insumo.packagePrice)}`;
 }
 
-export default function InsumoModal({ insumo, onClose, onSave }) {
+export default function InsumoModal({ insumo, onClose, onSave, categoryOptions = CATEGORY_OPTIONS }) {
   const accent = useAccent();
   const isWide = useIsWide(560);
   const isEditing = Boolean(insumo);
@@ -137,7 +137,7 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
       <ErrorBanner message={errorMsg} />
 
       <View style={row}>
-        <Field label="Nome" style={{ flex: 2 }}>
+        <Field label="Nome" style={isWide ? styles.nameFieldWide : undefined}>
           <Input
             placeholder="Ex: Luvas cirúrgicas estéreis"
             value={name}
@@ -147,8 +147,8 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
             }}
           />
         </Field>
-        <Field label="Categoria" style={{ flex: 1 }}>
-          <Select value={category} options={CATEGORY_OPTIONS} onChange={setCategory} />
+        <Field label="Categoria" style={isWide ? styles.fieldWide : undefined}>
+          <Select value={category} options={categoryOptions} onChange={setCategory} />
         </Field>
       </View>
 
@@ -156,10 +156,10 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
         <View style={styles.group}>
           <Text style={styles.groupTitle}>Como você compra</Text>
           <View style={row}>
-            <Field label="Embalagem" style={{ flex: 1 }}>
+            <Field label="Embalagem" style={isWide ? styles.fieldWide : undefined}>
               <Select value={packageType} options={PACKAGE_OPTIONS} onChange={setPackageType} />
             </Field>
-            <Field label={`Preço ${ofThe} ${packageLabel}`} style={{ flex: 1 }}>
+            <Field label={`Preço ${ofThe} ${packageLabel}`} style={isWide ? styles.fieldWide : undefined}>
               <NumberInput
                 prefix="R$"
                 min={0}
@@ -245,6 +245,8 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
   row: { flexDirection: 'row', gap: 14 },
   column: { gap: 14 },
+  nameFieldWide: { flex: 2 },
+  fieldWide: { flex: 1 },
   group: { gap: 14 },
   groupTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },

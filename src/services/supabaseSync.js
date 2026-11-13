@@ -51,6 +51,7 @@ function settingsRow(settings) {
     default_vet_commission_surgery_percent: orNull(settings.defaultVetCommissionSurgeryPercent),
     default_vet_commission_internment_percent: orNull(settings.defaultVetCommissionInternmentPercent),
     default_vet_commission_bath_percent: orNull(settings.defaultVetCommissionBathPercent),
+    average_product_waste_percent: settings.averageProductWastePercent ?? 0,
     include_labor_in_cost: Boolean(settings.includeLaborInCost),
     updated_at: new Date().toISOString(),
   };
@@ -206,6 +207,7 @@ export async function pullAll() {
     defaultVetCommissionSurgeryPercent: num(row.default_vet_commission_surgery_percent),
     defaultVetCommissionInternmentPercent: num(row.default_vet_commission_internment_percent),
     defaultVetCommissionBathPercent: num(row.default_vet_commission_bath_percent),
+    averageProductWastePercent: num(row.average_product_waste_percent) ?? 0,
     includeLaborInCost: row.include_labor_in_cost,
     externalProfessionals: professionals.map((professional) => ({
       id: professional.id,

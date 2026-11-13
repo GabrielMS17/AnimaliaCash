@@ -10,9 +10,11 @@ import {
   View
 } from 'react-native';
 import AppHeader from '../../components/AppHeader';
+import { useIsWide } from '../../components/ui';
 import { supabase } from '../../supabase';
 
 export default function TemplatesScreen() {
+  const isWide = useIsWide();
   const [tab, setTab] = useState('todos');
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,13 +108,15 @@ export default function TemplatesScreen() {
         </View>
 
         {/* Card de Métrica / Resumo */}
-        <View style={styles.card}>
-          <View style={styles.metricRow}>
-            <View style={{ flex: 1 }}>
+        <View style={[styles.card, !isWide && styles.cardCompact]}>
+          <View style={[styles.metricRow, !isWide && styles.metricRowCompact]}>
+            <View style={[styles.metricDetails, !isWide && styles.metricDetailsCompact]}>
               <Text style={styles.metricTitle}>Templates de Serviços Ativos</Text>
               <Text style={styles.metricSub}>Padronização de consumo e agilidade na operação diária</Text>
             </View>
-            <Text style={styles.metricValue}>{templates.length} ativos</Text>
+            <Text style={[styles.metricValue, !isWide && styles.metricValueCompact]}>
+              {templates.length} ativos
+            </Text>
           </View>
         </View>
 
@@ -126,9 +130,9 @@ export default function TemplatesScreen() {
         </TouchableOpacity>
 
         {/* Filtros / Tabs Estilizados */}
-        <View style={styles.tabContainer}>
+        <View style={[styles.tabContainer, !isWide && styles.tabContainerCompact]}>
           <TouchableOpacity
-            style={[styles.tabButton, tab === 'todos' && styles.tabButtonActive]}
+            style={[styles.tabButton, !isWide && styles.tabButtonCompact, tab === 'todos' && styles.tabButtonActive]}
             onPress={() => setTab('todos')}
           >
             <Text style={[styles.tabText, tab === 'todos' && styles.tabTextActive]}>
@@ -137,7 +141,7 @@ export default function TemplatesScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabButton, tab === 'banho' && styles.tabButtonActive]}
+            style={[styles.tabButton, !isWide && styles.tabButtonCompact, tab === 'banho' && styles.tabButtonActive]}
             onPress={() => setTab('banho')}
           >
             <Text style={[styles.tabText, tab === 'banho' && styles.tabTextActive]}>
@@ -146,7 +150,7 @@ export default function TemplatesScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabButton, tab === 'cirurgia' && styles.tabButtonActive]}
+            style={[styles.tabButton, !isWide && styles.tabButtonCompact, tab === 'cirurgia' && styles.tabButtonActive]}
             onPress={() => setTab('cirurgia')}
           >
             <Text style={[styles.tabText, tab === 'cirurgia' && styles.tabTextActive]}>
@@ -155,7 +159,7 @@ export default function TemplatesScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabButton, tab === 'clinico' && styles.tabButtonActive]}
+            style={[styles.tabButton, !isWide && styles.tabButtonCompact, tab === 'clinico' && styles.tabButtonActive]}
             onPress={() => setTab('clinico')}
           >
             <Text style={[styles.tabText, tab === 'clinico' && styles.tabTextActive]}>
@@ -171,30 +175,52 @@ export default function TemplatesScreen() {
             <Text style={styles.loadingText}>Carregando templates...</Text>
           </View>
         ) : (
-          <View style={styles.card}>
+          <View style={[styles.card, !isWide && styles.cardCompact]}>
             <Text style={styles.cardTitle}>Procedimentos Padronizados</Text>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.columnHeader, { flex: 2 }]}>Nome do Procedimento</Text>
-              <Text style={[styles.columnHeader, { flex: 1.2 }]}>Categoria</Text>
-              <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>Insumos</Text>
-              <Text style={[styles.columnHeader, { flex: 1, textAlign: 'right' }]}>Tempo Est.</Text>
-            </View>
-
             {templatesFiltrados.length === 0 ? (
               <Text style={styles.emptyText}>Nenhum template encontrado nesta categoria.</Text>
-            ) : (
-              templatesFiltrados.map((item) => (
-                <View key={item.id} style={styles.tableRow}>
-                  <Text style={[styles.cellTextBold, { flex: 2 }]}>{item.nome}</Text>
-                  <Text style={[styles.cellText, { flex: 1.2 }]}>{item.categoria}</Text>
-                  <Text style={[styles.cellText, { flex: 1, textAlign: 'center' }]}>
-                    {item.insumos_count} itens
-                  </Text>
-                  <Text style={[styles.cellBadge, { flex: 1, textAlign: 'right' }]}>
-                    {item.tempo_estimado}
-                  </Text>
+            ) : isWide ? (
+              <>
+                <View style={styles.tableHeader}>
+                  <Text style={[styles.columnHeader, { flex: 2 }]}>Nome do Procedimento</Text>
+                  <Text style={[styles.columnHeader, { flex: 1.2 }]}>Categoria</Text>
+                  <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>Insumos</Text>
+                  <Text style={[styles.columnHeader, { flex: 1, textAlign: 'right' }]}>Tempo Est.</Text>
                 </View>
-              ))
+
+                {templatesFiltrados.map((item) => (
+                  <View key={item.id} style={styles.tableRow}>
+                    <Text style={[styles.cellTextBold, { flex: 2 }]}>{item.nome}</Text>
+                    <Text style={[styles.cellText, { flex: 1.2 }]}>{item.categoria}</Text>
+                    <Text style={[styles.cellText, { flex: 1, textAlign: 'center' }]}>
+                      {item.insumos_count} itens
+                    </Text>
+                    <Text style={[styles.cellBadge, { flex: 1, textAlign: 'right' }]}>
+                      {item.tempo_estimado}
+                    </Text>
+                  </View>
+                ))}
+              </>
+            ) : (
+              <View style={styles.compactTemplateList}>
+                {templatesFiltrados.map((item) => (
+                  <View key={item.id} style={styles.compactTemplateRow}>
+                    <Text style={styles.compactTemplateName}>{item.nome}</Text>
+                    <View style={styles.compactTemplateDetail}>
+                      <Text style={styles.compactDetailLabel}>Categoria</Text>
+                      <Text style={styles.compactDetailValue}>{item.categoria}</Text>
+                    </View>
+                    <View style={styles.compactTemplateDetail}>
+                      <Text style={styles.compactDetailLabel}>Insumos</Text>
+                      <Text style={styles.compactDetailValue}>{item.insumos_count} itens</Text>
+                    </View>
+                    <View style={styles.compactTemplateDetail}>
+                      <Text style={styles.compactDetailLabel}>Tempo estimado</Text>
+                      <Text style={styles.compactDetailValue}>{item.tempo_estimado}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
             )}
           </View>
         )}
@@ -327,12 +353,17 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     elevation: 2,
   },
+  cardCompact: { padding: 12 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 14 },
   metricRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  metricDetails: { flex: 1, minWidth: 0 },
+  metricDetailsCompact: { flex: 0, width: '100%' },
+  metricRowCompact: { flexDirection: 'column', alignItems: 'flex-start', gap: 8 },
+  metricValueCompact: { alignSelf: 'flex-start' },
   metricTitle: { fontWeight: '700', fontSize: 15, color: PRIMARY_DARK },
   metricSub: { fontSize: 12, color: '#64748B', marginTop: 2 },
   metricValue: { fontSize: 18, fontWeight: '800', color: ACCENT_GREEN },
@@ -348,6 +379,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 16,
   },
+  tabContainerCompact: { flexWrap: 'wrap', gap: 6 },
   tabButton: {
     flex: 1,
     paddingVertical: 10,
@@ -359,6 +391,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 6,
   },
+  tabButtonCompact: { flexBasis: '45%', flexGrow: 1, minWidth: 0, marginRight: 0 },
   tabButtonActive: {
     backgroundColor: PRIMARY_DARK,
     borderColor: PRIMARY_DARK,
@@ -391,6 +424,16 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
     alignItems: 'center',
   },
+  compactTemplateList: { gap: 12 },
+  compactTemplateRow: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 12,
+  },
+  compactTemplateName: { fontSize: 14, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 8 },
+  compactTemplateDetail: { marginBottom: 6 },
+  compactDetailLabel: { fontSize: 10, color: '#64748B', fontWeight: '700', textTransform: 'uppercase' },
+  compactDetailValue: { fontSize: 13, color: PRIMARY_DARK, marginTop: 2 },
   cellTextBold: {
     fontWeight: '700',
     color: PRIMARY_DARK,
@@ -484,12 +527,13 @@ const styles = StyleSheet.create({
   modalButtonSave: { backgroundColor: ACCENT_GREEN },
   modalButtonSaveText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
   footerContainer: {
+    width: '100%',
     marginTop: 24,
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     alignItems: 'center',
   },
-  footerText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
-  footerSubtext: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  footerText: { width: '100%', fontSize: 11, lineHeight: 15, fontWeight: '600', color: '#64748B', textAlign: 'center' },
+  footerSubtext: { width: '100%', fontSize: 10, lineHeight: 14, color: '#94A3B8', marginTop: 2, textAlign: 'center' },
 });
