@@ -202,8 +202,16 @@ function ChangePasswordCard() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError('A nova senha deve ter pelo menos 6 caracteres.');
+    if (newPassword.length < 10) {
+      setError('A nova senha deve conter no mínimo 10 caracteres.');
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      setError('A nova senha deve conter pelo menos uma letra maiúscula.');
+      return;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      setError('A nova senha deve conter pelo menos um caractere especial.');
       return;
     }
 
@@ -256,9 +264,10 @@ function ChangePasswordCard() {
         </Field>
 
         <Field label="Nova senha">
+          <Text style={styles.inputSubLabel}>Mínimo 10 caracteres, 1 letra maiúscula e 1 caractere especial</Text>
           <Input
             secureTextEntry
-            placeholder="Mínimo de 6 caracteres"
+            placeholder="Ex: Senha@12345"
             value={newPassword}
             onChangeText={setNewPassword}
           />
@@ -349,6 +358,7 @@ const styles = StyleSheet.create({
   section: { padding: 20, gap: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 2 },
   muted: { fontSize: 13, color: COLORS.muted },
+  inputSubLabel: { fontSize: 10, color: '#64748B', marginBottom: 6 },
   itemTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   row: { flexDirection: 'row', gap: 14 },
   column: { gap: 14 },

@@ -73,7 +73,9 @@ export default function LoginScreen({ onLoginSuccess }) {
         }
 
         const role = profile?.role ?? user.user_metadata?.role ?? 'Veterinário';
-        if (role !== 'Administrador' && role !== 'Veterinário') {
+        
+        // Permite o acesso para Administrador, Veterinário e Esteticista Animal
+        if (role !== 'Administrador' && role !== 'Veterinário' && role !== 'Esteticista Animal') {
           await rejectAuthenticatedSession();
           throw new Error('Não foi possível identificar seu perfil de acesso. Solicite ajuda a um administrador.');
         }
@@ -90,7 +92,7 @@ export default function LoginScreen({ onLoginSuccess }) {
       // Traduz mensagens técnicas do Supabase para uma linguagem amigável
       let mensagem = error.message;
       if (mensagem.includes('Invalid login credentials')) {
-        mensagem = 'E-mail (ou CRMV) ou senha incorretos. Verifique os seus dados e tente novamente.';
+        mensagem = 'E-mail ou senha incorretos. Verifique os seus dados e tente novamente.';
       }
 
       setErrorMessage(mensagem || 'Ocorreu um erro ao conectar.');
@@ -132,15 +134,15 @@ export default function LoginScreen({ onLoginSuccess }) {
         <View style={[styles.card, isMobile && styles.cardMobile]}>
           <Text style={styles.title}>Acesse a Plataforma</Text>
           <Text style={styles.subtitle}>
-            Entre com seu E-mail / CRMV e senha para continuar
+            Entre com seu E-mail e senha para continuar
           </Text>
 
           {/* Campo Identificador */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>E-mail ou CRMV</Text>
+            <Text style={styles.label}>E-mail</Text>
             <TextInput
               style={styles.input}
-              placeholder="exemplo@veterinaria.com ou CRMV 1234"
+              placeholder="exemplo@veterinaria.com"
               placeholderTextColor="#94A3B8"
               value={identifier}
               onChangeText={setIdentifier}

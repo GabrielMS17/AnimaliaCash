@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { supabase } from '../../supabase';
 
@@ -24,10 +24,12 @@ export default function CadastrosScreen() {
   const [crmvInput, setCrmvInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Estado para o Pop-up de Sucesso Customizado
+  // Estados para Pop-ups Customizados
   const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [alertModalVisible, setAlertModalVisible] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
 
-  const rolesOpcoes = ['Administrador', 'Veterinário'];
+  const rolesOpcoes = ['Administrador', 'Veterinário', 'Esteticista Animal'];
 
   useEffect(() => {
     fetchProfiles();
@@ -50,20 +52,42 @@ export default function CadastrosScreen() {
     }
   };
 
+  const showAlert = (msg) => {
+    setAlertMessage(msg);
+    setAlertModalVisible(true);
+  };
+
   const handleSaveProfile = async () => {
     if (!nomeInput || !emailInput || !senhaInput) {
-      alert('Por favor, preencha o Nome, o E-mail institucional e a Senha provisória.');
+      showAlert('Por favor, preencha o Nome, o E-mail institucional e a Senha provisória.');
       return;
     }
 
-    if (senhaInput.length < 6) {
-      alert('A senha provisória deve conter pelo menos 6 caracteres.');
+    // Validação de senha: mínimo 10 caracteres, 1 Maiúscula e 1 caractere especial
+    if (senhaInput.length < 10) {
+      showAlert('A senha provisória deve conter no mínimo 10 caracteres.');
+      return;
+    }
+    if (!/[A-Z]/.test(senhaInput)) {
+      showAlert('A senha provisória deve conter pelo menos uma letra maiúscula.');
+      return;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(senhaInput)) {
+      showAlert('A senha provisória deve conter pelo menos um caractere especial.');
       return;
     }
 
-    if (roleInput === 'Veterinário' && !crmvInput.trim()) {
-      alert('O CRMV é obrigatório para cadastros com o perfil de Veterinário.');
-      return;
+    // Validação do CRMV para Veterinário (mínimo 3 e máximo 5 caracteres)
+    if (roleInput === 'Veterinário') {
+      const crmvClean = crmvInput.trim();
+      if (!crmvClean) {
+        showAlert('O CRMV é obrigatório para cadastros com o perfil de Veterinário.');
+        return;
+      }
+      if (crmvClean.length < 3 || crmvClean.length > 5) {
+        showAlert('O CRMV deve ter no mínimo 3 e no máximo 5 caracteres.');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -106,7 +130,7 @@ export default function CadastrosScreen() {
 
       if (profileError) throw profileError;
 
-      // 4. RESTAURA A SESSÃO DO ADMINISTRADOR ORIGINAL (Evita que o admin vire o novo usuário)
+      // 4. RESTAURA A SESSÃO DO ADMINISTRADOR ORIGINAL
       if (adminSession) {
         await supabase.auth.setSession({
           access_token: adminSession.access_token,
@@ -128,7 +152,7 @@ export default function CadastrosScreen() {
       fetchProfiles();
     } catch (error) {
       console.error('Erro ao cadastrar perfil:', error);
-      alert(`Erro ao cadastrar: ${error.message || 'Erro desconhecido'}`);
+      showAlert(`Erro ao cadastrar: ${error.message || 'Erro desconhecido'}`);
     } finally {
       setSubmitting(false);
     }
@@ -147,12 +171,13 @@ export default function CadastrosScreen() {
       fetchProfiles();
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
-      alert(`Erro ao atualizar status: ${error.message}`);
+      showAlert(`Erro ao atualizar status: ${error.message}`);
     }
   };
 
   const getRoleColor = (role) => {
     if (role === 'Administrador') return '#0284C7';
+    if (role === 'Esteticista Animal') return '#D946EF';
     return ACCENT_GREEN;
   };
 
@@ -192,7 +217,6 @@ export default function CadastrosScreen() {
           </View>
         ) : perfis.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyEmoji}>👥</Text>
             <Text style={styles.emptyTitle}>Nenhum perfil encontrado</Text>
             <Text style={styles.emptyText}>
               Ainda não existem colaboradores registados na tabela profiles. Clique no botão acima para começar.
@@ -293,9 +317,10 @@ export default function CadastrosScreen() {
               {/* Senha Provisória */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Senha Provisória de Acesso *</Text>
+                <Text style={styles.inputSubLabel}>Mínimo 10 caracteres, 1 letra maiúscula e 1 caractere especial</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Mínimo de 6 caracteres"
+                  placeholder="Ex: Senha@12345"
                   placeholderTextColor="#94A3B8"
                   secureTextEntry
                   value={senhaInput}
@@ -328,11 +353,12 @@ export default function CadastrosScreen() {
               {/* CRMV Obrigatório apenas se Veterinário */}
               {roleInput === 'Veterinário' && (
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>CRMV * (Obrigatório para Veterinário)</Text>
+                  <Text style={styles.inputLabel}>CRMV * (3 a 5 caracteres)</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Ex: SP-12345"
+                    placeholder="Ex: 12345"
                     placeholderTextColor="#94A3B8"
+                    maxLength={5}
                     value={crmvInput}
                     onChangeText={setCrmvInput}
                   />
@@ -364,6 +390,29 @@ export default function CadastrosScreen() {
           </View>
         </Modal>
 
+        {/* MODAL DE AVISO / ERRO ESTILIZADO */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={alertModalVisible}
+          onRequestClose={() => setAlertModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.successModalContent}>
+              <Text style={styles.successTitle}>Atenção</Text>
+              <Text style={styles.successMessage}>{alertMessage}</Text>
+
+              <TouchableOpacity
+                style={styles.successButton}
+                activeOpacity={0.8}
+                onPress={() => setAlertModalVisible(false)}
+              >
+                <Text style={styles.successButtonText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
         {/* MODAL DE SUCESSO CUSTOMIZADO */}
         <Modal
           animationType="fade"
@@ -373,10 +422,6 @@ export default function CadastrosScreen() {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.successModalContent}>
-              <View style={styles.successIconCircle}>
-                <Text style={styles.successCheckmark}>✓</Text>
-              </View>
-
               <Text style={styles.successTitle}>Colaborador Cadastrado!</Text>
               <Text style={styles.successMessage}>
                 O registo foi efetuado com sucesso e a conta de acesso já está habilitada para realizar o login no sistema.
@@ -441,10 +486,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: ACCENT_GREEN,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
     elevation: 2,
   },
   buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
@@ -539,7 +580,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  emptyEmoji: { fontSize: 32, marginBottom: 8 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 4 },
   emptyText: { fontSize: 12, color: '#64748B', textAlign: 'center', lineHeight: 18 },
 
@@ -564,7 +604,8 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 18, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 16 },
   inputContainer: { marginBottom: 14 },
-  inputLabel: { fontSize: 12, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 6 },
+  inputLabel: { fontSize: 12, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 4 },
+  inputSubLabel: { fontSize: 10, color: '#64748B', marginBottom: 6 },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
@@ -604,22 +645,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     elevation: 4,
-  },
-  successIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#F0FDF4',
-    borderWidth: 2,
-    borderColor: '#86EFAC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  successCheckmark: {
-    color: '#16A34A',
-    fontSize: 26,
-    fontWeight: '800',
   },
   successTitle: {
     fontSize: 18,
