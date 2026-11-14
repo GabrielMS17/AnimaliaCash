@@ -12,7 +12,6 @@ const KEYS = {
   settings: 'animalia_web_settings',
   insumos: 'animalia_web_insumos',
   procedures: 'animalia_web_procedures',
-  produtos: 'animalia_web_produtos',
   autoSync: 'animalia_web_autosync',
   syncBase: 'animalia_web_sync_base',
 };
@@ -49,7 +48,6 @@ export function DataProvider({ children }) {
       procedures: readStorage(KEYS.procedures),
     }),
   );
-  const [produtos, setProdutos] = useState(() => readStorage(KEYS.produtos, []));
   const [autoSync, setAutoSyncState] = useState(() => readStorage(KEYS.autoSync, true));
   const [syncStatus, setSyncStatus] = useState({ state: 'idle' });
   // Conta alterações feitas pelo usuário; carregar ou baixar dados não dispara envio automático
@@ -64,10 +62,6 @@ export function DataProvider({ children }) {
     writeStorage(KEYS.insumos, data.insumos);
     writeStorage(KEYS.procedures, data.procedures);
   }, [data]);
-
-  useEffect(() => {
-    writeStorage(KEYS.produtos, produtos);
-  }, [produtos]);
 
   const update = useCallback((updater) => {
     setData(updater);
@@ -124,6 +118,13 @@ export function DataProvider({ children }) {
     return { state: 'ok', message: 'Dados enviados ao Supabase.' };
   }), [enqueue, pushPending]);
 
+  // Garante que insumos e procedimentos recém-editados já estão no banco (o estoque depende deles).
+  // Só envia se este navegador já sincronizou antes, para não subir dados de exemplo por engano.
+  const flushPending = useCallback(() => enqueue(async () => {
+    if (baseRef.current) await pushPending();
+    return null;
+  }, { quiet: true }), [enqueue, pushPending]);
+
   const pullNow = useCallback(() => enqueue(async () => {
     const local = dataRef.current;
     const remote = await pullAll();
@@ -169,7 +170,6 @@ export function DataProvider({ children }) {
 
   const value = useMemo(() => ({
     ...data,
-    produtos,
     insumosMap: new Map(data.insumos.map((insumo) => [insumo.id, insumo])),
 
     saveSettings: (settings) => update((prev) => ({ ...prev, settings })),
@@ -231,15 +231,6 @@ export function DataProvider({ children }) {
       return { ...prev, insumos: fresh.insumos, procedures: fresh.procedures };
     }),
 
-    addProduto: (produto) => setProdutos((prev) => [...prev, produto].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))),
-    // Soma o lote ao saldo e recalcula o custo médio ponderado
-    addLote: (produtoId, quantidade, valorTotal) => setProdutos((prev) => prev.map((produto) => {
-      if (produto.id !== produtoId) return produto;
-      const saldo = produto.saldo_estoque + quantidade;
-      const custoAtual = produto.saldo_estoque * produto.custo_medio_unitario;
-      return { ...produto, saldo_estoque: saldo, custo_medio_unitario: (custoAtual + valorTotal) / saldo };
-    })),
-
     autoSync,
     setAutoSync: (enabled) => {
       setAutoSyncState(enabled);
@@ -248,7 +239,8 @@ export function DataProvider({ children }) {
     syncStatus,
     pushNow,
     pullNow,
-  }), [data, produtos, autoSync, syncStatus, update, pushNow, pullNow]);
+    flushPending,
+  }), [data, autoSync, syncStatus, update, pushNow, pullNow, flushPending]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

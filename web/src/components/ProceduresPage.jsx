@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useData } from '../store/DataContext';
 import { calculateProcedure, formatBRL, formatDuration, matchesWeightRange, WEIGHT_RANGES } from '../utils/costCalculations';
+import ProcedureConsumeModal from './ProcedureConsumeModal';
 import ProcedureDetailModal from './ProcedureDetailModal';
 import ProcedureEditModal from './ProcedureEditModal';
 import { SectionHeader, Segmented } from './ui';
@@ -19,11 +20,13 @@ const WEIGHT_OPTIONS = WEIGHT_RANGES.map((range) => ({ value: range.id, label: r
 
 /** Página de Cirurgias, Internação ou Banho & Tosa: lista, filtros e cadastro de procedimentos. */
 export default function ProceduresPage({ category }) {
-  const { procedures, insumos, insumosMap, settings, saveProcedure, duplicateProcedure, deleteProcedure, saveInsumo, saveProfessional } = useData();
+  const { procedures, insumos, insumosMap, settings, saveProcedure, duplicateProcedure, deleteProcedure, saveInsumo, saveProfessional, flushPending } = useData();
   const [search, setSearch] = useState('');
   const [weightRange, setWeightRange] = useState('todos');
   const [detail, setDetail] = useState(null);
   const [editing, setEditing] = useState(null); // null = fechado, {} = novo, procedimento = edição
+  const [consuming, setConsuming] = useState(null); // procedimento sendo registrado como realizado
+  const [notice, setNotice] = useState('');
 
   const header = HEADER[category];
   const categoryProcedures = useMemo(() => procedures.filter((procedure) => procedure.category === category), [procedures, category]);
@@ -50,6 +53,8 @@ export default function ProceduresPage({ category }) {
         action={<button type="button" className="btn btn-primary" onClick={() => setEditing({})}>+ {header.newLabel}</button>}
       />
 
+      {notice && <p className="saved-text" role="status">✓ {notice}</p>}
+
       <div className="filters">
         <Segmented label="Filtrar por peso" options={WEIGHT_OPTIONS} value={weightRange} onChange={setWeightRange} />
         <input type="search" aria-label="Buscar procedimento" placeholder="Buscar procedimento" value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -68,6 +73,7 @@ export default function ProceduresPage({ category }) {
                 onOpen={() => setDetail(procedure)}
                 onEdit={() => setEditing(procedure)}
                 onDuplicate={() => duplicateProcedure(procedure)}
+                onRegister={() => { setNotice(''); setConsuming(procedure); }}
                 onDelete={() => handleDelete(procedure)}
               />
             ))}
@@ -107,6 +113,19 @@ export default function ProceduresPage({ category }) {
         />
       )}
 
+      {consuming && (
+        <ProcedureConsumeModal
+          procedure={consuming}
+          insumosMap={insumosMap}
+          flushPending={flushPending}
+          onClose={() => setConsuming(null)}
+          onDone={(times) => {
+            setNotice(`${consuming.name}: ${times === 1 ? 'realização registrada' : `${times} realizações registradas`} e itens baixados do estoque.`);
+            setConsuming(null);
+          }}
+        />
+      )}
+
       {editing && (
         <ProcedureEditModal
           procedure={editing.id ? editing : null}
@@ -127,7 +146,7 @@ export default function ProceduresPage({ category }) {
   );
 }
 
-function ProcedureCard({ procedure, insumosMap, settings, onOpen, onEdit, onDuplicate, onDelete }) {
+function ProcedureCard({ procedure, insumosMap, settings, onOpen, onEdit, onDuplicate, onDelete, onRegister }) {
   const calc = calculateProcedure(procedure, insumosMap, settings);
   const hasMissingItems = calc.itemDetails.some((item) => item.missing);
 
@@ -151,6 +170,7 @@ function ProcedureCard({ procedure, insumosMap, settings, onOpen, onEdit, onDupl
         </span>
       </button>
       <div className="procedure-actions">
+        <button type="button" className="btn btn-ghost btn-small" onClick={onRegister}>Registrar realização</button>
         <button type="button" className="btn btn-ghost btn-small" onClick={onEdit}>Editar</button>
         <button type="button" className="btn btn-ghost btn-small" onClick={onDuplicate}>Duplicar</button>
         <button type="button" className="btn btn-ghost btn-small push-right" onClick={onDelete}>Excluir</button>

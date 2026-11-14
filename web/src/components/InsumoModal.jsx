@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { NON_STOCK_UNITS } from '../services/stockService';
 import { formatBRL, formatDecimal, formatUnitCost } from '../utils/costCalculations';
 import { Field, Modal, NumberInput } from './ui';
 
@@ -60,6 +61,12 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
   const [packageSize, setPackageSize] = useState(insumo?.packageSize ?? 0);
   const [manualCost, setManualCost] = useState(insumo?.costPerUnit ?? 0);
   const [notes, setNotes] = useState(insumo?.notes ?? '');
+  const [brand, setBrand] = useState(insumo?.brand ?? '');
+  const [minStock, setMinStock] = useState(insumo?.minStock ?? 0);
+  // Sem escolha do usuário, segue a unidade: kWh, minuto, hora e diária não têm estoque
+  const [trackChoice, setTrackChoice] = useState(insumo?.trackStock);
+  const autoTrack = !NON_STOCK_UNITS.includes(unit);
+  const trackStock = trackChoice ?? autoTrack;
   const [error, setError] = useState('');
 
   const packageLabel = PACKAGE_OPTIONS.find((option) => option.value === packageType)?.label.toLowerCase() ?? 'embalagem';
@@ -74,6 +81,8 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
     if (!cleanName) return setError('Informe o nome do insumo.');
     if (cleanName.length > 100) return setError('O nome do insumo é muito longo (máximo de 100 caracteres).');
     if (cleanNotes.length > 255) return setError('As observações devem ter no máximo 255 caracteres.');
+    const cleanBrand = brand.trim();
+    if (cleanBrand.length > 80) return setError('A marca deve ter no máximo 80 caracteres.');
     if (!directCost) {
       if (packagePrice <= 0) return setError(`Informe o preço pago ${isMasculine ? 'pelo' : 'pela'} ${packageLabel}.`);
       if (packageSize <= 0) return setError(`Informe a quantidade que vem ${inThe} ${packageLabel}.`);
@@ -91,6 +100,9 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
       packagePrice: directCost ? undefined : packagePrice,
       packageSize: directCost ? undefined : packageSize,
       notes: cleanNotes || undefined,
+      brand: cleanBrand || undefined,
+      minStock: trackStock && minStock > 0 ? minStock : undefined,
+      trackStock: trackStock === autoTrack ? undefined : trackStock,
     });
   };
 
@@ -102,7 +114,7 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
 
   return (
     <Modal
-      title={isEditing ? 'Editar insumo' : 'Novo insumo'}
+      title={isEditing ? 'Editar item do estoque' : 'Novo item do estoque'}
       subtitle="Alterações no custo refletem em todos os procedimentos que usam este item."
       onClose={onClose}
       onSubmit={handleSave}
@@ -188,6 +200,23 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
         />
         Informar custo unitário direto (sem embalagem, ex: kWh, diária)
       </label>
+
+      <section className="form-group">
+        <h3>Estoque</h3>
+        <label className="checkbox">
+          <input type="checkbox" checked={trackStock} onChange={(event) => setTrackChoice(event.target.checked)} />
+          Controlar o estoque deste item (desmarque para energia, água da torneira, tempo...)
+        </label>
+        {trackStock && (
+          <Field label="Estoque mínimo (opcional)" hint="Abaixo deste saldo o item aparece com alerta de reposição.">
+            <NumberInput min={0} placeholder="0" label="Estoque mínimo" value={minStock} onChange={setMinStock} suffix={unit} className="w-small" />
+          </Field>
+        )}
+      </section>
+
+      <Field label="Marca / fabricante (opcional)">
+        <input type="text" placeholder="Ex: Zoetis, Ourofino" value={brand} onChange={(event) => setBrand(event.target.value)} />
+      </Field>
 
       <Field label="Observações (opcional)">
         <input type="text" placeholder="Ex: Lâmina nº 15 estéril" value={notes} onChange={(event) => setNotes(event.target.value)} />

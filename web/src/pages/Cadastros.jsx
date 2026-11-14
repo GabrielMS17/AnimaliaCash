@@ -6,6 +6,7 @@ import { signUpClient, supabase } from '../supabase';
 const ROLES = [
   { value: 'Administrador', label: 'Administrador' },
   { value: 'Veterinário', label: 'Veterinário' },
+  { value: 'Esteticista Animal', label: 'Esteticista Animal' },
 ];
 const EMPTY_FORM = { nome: '', email: '', senha: '', role: 'Veterinário', crmv: '' };
 
@@ -41,13 +42,29 @@ export default function Cadastros() {
       setFormError('Por favor, preencha o Nome, o E-mail institucional e a Senha provisória.');
       return;
     }
-    if (form.senha.length < 6) {
-      setFormError('A senha provisória deve conter pelo menos 6 caracteres.');
+    // Mesmas regras do app: mínimo 10 caracteres, 1 maiúscula e 1 caractere especial
+    if (form.senha.length < 10) {
+      setFormError('A senha provisória deve conter no mínimo 10 caracteres.');
       return;
     }
-    if (form.role === 'Veterinário' && !form.crmv.trim()) {
-      setFormError('O CRMV é obrigatório para cadastros com o perfil de Veterinário.');
+    if (!/[A-Z]/.test(form.senha)) {
+      setFormError('A senha provisória deve conter pelo menos uma letra maiúscula.');
       return;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(form.senha)) {
+      setFormError('A senha provisória deve conter pelo menos um caractere especial.');
+      return;
+    }
+    if (form.role === 'Veterinário') {
+      const crmv = form.crmv.trim();
+      if (!crmv) {
+        setFormError('O CRMV é obrigatório para cadastros com o perfil de Veterinário.');
+        return;
+      }
+      if (crmv.length < 3 || crmv.length > 5) {
+        setFormError('O CRMV deve ter no mínimo 3 e no máximo 5 caracteres.');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -129,7 +146,7 @@ export default function Cadastros() {
         <div className="profile-list">
           {perfis.map((perfil) => {
             const inactive = perfil.status === 'Inativo';
-            const roleClass = perfil.role === 'Administrador' ? 'role-admin' : 'role-vet';
+            const roleClass = { Administrador: 'role-admin', 'Esteticista Animal': 'role-groomer' }[perfil.role] ?? 'role-vet';
             return (
               <div key={perfil.id} className={`card profile-card ${roleClass} ${inactive ? 'inactive' : ''}`}>
                 <div className="profile-top">
@@ -176,7 +193,7 @@ export default function Cadastros() {
               <input type="email" autoComplete="off" placeholder="amanda@animaliacash.com" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
             </Field>
             <Field label="Senha Provisória de Acesso *">
-              <input type="password" autoComplete="new-password" placeholder="Mínimo de 6 caracteres" value={form.senha} onChange={(event) => setForm({ ...form, senha: event.target.value })} />
+              <input type="password" autoComplete="new-password" placeholder="Mínimo de 10, com maiúscula e símbolo" value={form.senha} onChange={(event) => setForm({ ...form, senha: event.target.value })} />
             </Field>
             <div className="field">
               <span className="field-label">Função / Perfil *</span>

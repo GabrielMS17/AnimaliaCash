@@ -7,7 +7,6 @@ import Cirurgia from './pages/Cirurgia';
 import Configuracoes from './pages/Configuracoes';
 import Custos from './pages/Custos';
 import Estoque from './pages/Estoque';
-import Insumos from './pages/Insumos';
 import Internacao from './pages/Internacao';
 import Login from './pages/Login';
 import Templates from './pages/Templates';
@@ -58,7 +57,6 @@ export default function App() {
           <Route path="/banho-tosa" element={<Banho />} />
           <Route path="/cirurgia" element={<Cirurgia />} />
           <Route path="/internacao" element={<Internacao />} />
-          <Route path="/insumos" element={<Insumos />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

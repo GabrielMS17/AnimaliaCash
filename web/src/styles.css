@@ -480,6 +480,39 @@ td strong { color: var(--navy); }
 .profile-crmv b { color: var(--navy); }
 .btn-activate { background: #f0fdf4; border-color: #86efac; color: #16a34a; }
 
+/* Estoque */
+.stock-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.stock-summary-card { display: flex; flex-direction: column; gap: 4px; margin-bottom: 0; }
+.stock-summary-card small { color: var(--muted); font-size: 12px; }
+.stock-summary-card strong { color: var(--text); font-size: 20px; font-weight: 800; }
+.stock-summary-card.alert { background: #fff1f2; border-color: #fecdd3; }
+.stock-summary-card.alert strong { color: var(--danger); }
+.stock-summary-card .btn { align-self: flex-start; padding-left: 0; }
+.stock-filters { align-items: flex-start; }
+.stock-filter-groups { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.stock-qty { display: flex; flex-direction: column; align-items: flex-end; min-width: 110px; }
+.stock-qty strong { font-size: 16px; font-weight: 800; }
+.stock-qty strong span { color: var(--muted); font-size: 13px; font-weight: 400; }
+.stock-qty small { color: var(--muted); font-size: 12px; }
+.stock-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.stock-badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.stock-badge.danger { background: #fff1f2; color: var(--danger); }
+.stock-badge.warning { background: #fef3c7; color: #b45309; }
+.stock-lots { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
+.stock-lot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.stock-lot:last-child { border-bottom: 0; }
+.stock-lot-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.stock-lot-info small { color: var(--muted); font-size: 12px; }
+.stock-lot-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.stock-lot-side strong span { color: var(--muted); font-size: 12px; font-weight: 400; }
+.positive-text { color: #047857; }
+.cost-box-right { display: flex; flex-direction: column; align-items: flex-end; }
+.profile-card.role-groomer { --role-color: #d946ef; }
+@media (max-width: 760px) {
+  .stock-row { flex-wrap: wrap; }
+  .stock-qty { align-items: flex-start; }
+}
+
 @media (max-width: 760px) {
   .two-columns, .costs-columns { grid-template-columns: minmax(0, 1fr); }
   .card-grid { grid-template-columns: minmax(0, 1fr); }

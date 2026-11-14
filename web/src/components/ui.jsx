@@ -10,7 +10,6 @@ export const SECTIONS = [
   { path: '/banho-tosa', label: 'Banho & Tosa', accent: '#0284C7', soft: '#E0F2FE' },
   { path: '/cirurgia', label: 'Cirurgias', accent: '#E11D48', soft: '#FFE4E6' },
   { path: '/internacao', label: 'Internação', accent: '#D97706', soft: '#FEF3C7' },
-  { path: '/insumos', label: 'Insumos', accent: '#7C3AED', soft: '#EDE9FE' },
   { path: '/configuracoes', label: 'Configurações', accent: '#0C2D48', soft: '#E2E8F0', hidden: true },
 ];
 
