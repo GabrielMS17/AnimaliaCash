@@ -36,9 +36,11 @@ export function daysUntil(isoDate) {
   return Math.round((target - Date.UTC(ty, tm - 1, td)) / 86400000);
 }
 
+/** "2026-12-31" vira "31/12/2026". Data e hora (ex: created_at) são mostradas no fuso do aparelho. */
 export function formatDateBR(isoDate) {
   if (!isoDate) return '';
-  const [y, m, d] = isoDate.slice(0, 10).split('-');
+  if (isoDate.length > 10) return new Date(isoDate).toLocaleDateString('pt-BR');
+  const [y, m, d] = isoDate.split('-');
   return `${d}/${m}/${y}`;
 }
 
