@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 
 import UserMenu from './UserMenu';
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
 import { SECTIONS } from './ui';
-import { canAccessRoute, VETERINARIAN_ROLE } from '../utils/accessControl';
+import { ANIMAL_GROOMER_ROLE, canAccessRoute, VETERINARIAN_ROLE } from '../utils/accessControl';
 
 const NAV_ORDER = [
   'cadastros',
@@ -13,14 +13,17 @@ const NAV_ORDER = [
   'banho_tosa',
   'cirurgia',
   'internacao',
-  'insumos',
 ];
 
 /** Cabeçalho institucional e navegação dos módulos permitidos para o perfil atual. */
 export default function AppHeader() {
   const pathname = usePathname();
   const { role } = useAnimaliaData();
-  const landingRoute = role === VETERINARIAN_ROLE ? '/banho-tosa' : '/cadastros';
+  const landingRoute = role === ANIMAL_GROOMER_ROLE
+    ? '/banho-tosa'
+    : role === VETERINARIAN_ROLE
+      ? '/cirurgia'
+      : '/cadastros';
   const navigationItems = NAV_ORDER
     .map((section) => SECTIONS[section])
     .filter((item) => canAccessRoute(role, item.href));
@@ -29,11 +32,15 @@ export default function AppHeader() {
     <>
       <View style={styles.headerContainer}>
         <Link href={landingRoute} asChild>
-          <Pressable accessibilityRole="link" accessibilityLabel="Ir para a tela inicial">
-            <Text style={styles.brandTitle}>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Ir para a tela inicial"
+            style={styles.brand}
+          >
+            <Text style={styles.brandTitle} numberOfLines={1}>
               Animalia<Text style={styles.brandSubtitle}>Cash</Text>
             </Text>
-            <Text style={styles.brandTagline}>SOLUÇÕES FINANCEIRAS</Text>
+            <Text style={styles.brandTagline} numberOfLines={1}>SOLUÇÕES FINANCEIRAS</Text>
           </Pressable>
         </Link>
         <UserMenu />
@@ -69,14 +76,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C2D48',
     paddingTop: 15,
     paddingBottom: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
+  brand: { flexShrink: 1, minWidth: 0 },
   brandTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
   brandSubtitle: { color: '#00A86B' },
-  brandTagline: { color: '#94A3B8', fontSize: 9, fontWeight: '600', letterSpacing: 1.5, marginTop: -2 },
+  brandTagline: { color: '#94A3B8', fontSize: 9, fontWeight: '600', letterSpacing: 1.5, marginTop: -2, flexShrink: 1 },
   moduleNav: {
     flexGrow: 0,
     backgroundColor: '#FFFFFF',

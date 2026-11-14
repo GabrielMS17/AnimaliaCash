@@ -7,12 +7,11 @@ import { canAccessRoute } from '../../utils/accessControl';
 const menuItems = [
   { href: '/cadastros', titulo: 'Cadastros', descricao: 'Gerencie os acessos e perfis dos colaboradores' },
   { href: '/custos', titulo: 'Custos e Taxas', descricao: 'Gerencie custos fixos, custos variáveis e taxas de pagamento' },
-  { href: '/estoque', titulo: 'Estoque', descricao: 'Produtos, entrada de lotes e custo médio' },
+  { href: '/estoque', titulo: 'Estoque', descricao: 'Itens, custos, lotes, validade e baixas pelos procedimentos' },
   { href: '/templates', titulo: 'Templates', descricao: 'Gerencie templates e fichas técnicas de procedimentos' },
   { href: '/cirurgia', titulo: 'Cirurgias', descricao: 'Custo de cada cirurgia por peso, com insumos e terceirizados' },
   { href: '/internacao', titulo: 'Internação', descricao: 'Custo das diárias de internação por porte do animal' },
   { href: '/banho-tosa', titulo: 'Banho & Tosa', descricao: 'Custo de cada serviço de estética por porte' },
-  { href: '/insumos', titulo: 'Insumos', descricao: 'Materiais e medicamentos com custo unitário' },
 ];
 
 export default function TelaInicial() {
@@ -133,12 +132,13 @@ const styles = StyleSheet.create({
     color: ACCENT_GREEN,
   },
   footerContainer: {
+    width: '100%',
     marginTop: 24,
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     alignItems: 'center',
   },
-  footerText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
-  footerSubtext: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  footerText: { width: '100%', fontSize: 11, lineHeight: 15, fontWeight: '600', color: '#64748B', textAlign: 'center' },
+  footerSubtext: { width: '100%', fontSize: 10, lineHeight: 14, color: '#94A3B8', marginTop: 2, textAlign: 'center' },
 });

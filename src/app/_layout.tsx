@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { AnimaliaDataProvider, useAnimaliaData } from '../store/AnimaliaDataContext';
 import { supabase } from '../supabase';
-import { canAccessRoute, isKnownRole } from '../utils/accessControl';
+import { ANIMAL_GROOMER_ROLE, canAccessRoute, isKnownRole, VETERINARIAN_ROLE } from '../utils/accessControl';
 
 // Exige login para acessar o app. Use false só para testes locais sem autenticação.
 const LOGIN_OBRIGATORIO = true;
@@ -34,7 +34,12 @@ function AuthGate() {
       router.replace('/Login');
     } else if (session && roleLoadedForSession) {
       if (inAuthGroup || !canAccessRoute(role, currentRoute)) {
-        router.replace(role === 'Veterinário' ? '/banho-tosa' : '/cadastros');
+        const landingRoute = role === ANIMAL_GROOMER_ROLE
+          ? '/banho-tosa'
+          : role === VETERINARIAN_ROLE
+            ? '/cirurgia'
+            : '/cadastros';
+        router.replace(landingRoute);
       }
     }
   }, [session, sessionLoaded, role, roleLoadedForSession, currentRoute, segments, router]);

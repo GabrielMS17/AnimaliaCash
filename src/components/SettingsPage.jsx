@@ -109,13 +109,13 @@ export default function SettingsPage() {
             </View>
           ))}
           <View style={row}>
-            <Field label="Nome" style={styles.cell}>
+            <Field label="Nome" style={[styles.cell, isWide && styles.cellWide]}>
               <Input placeholder="Ex: Dra. Ana Silva" value={professionalName} onChangeText={setProfessionalName} />
             </Field>
-            <Field label="Especialidade" style={styles.cell}>
+            <Field label="Especialidade" style={[styles.cell, isWide && styles.cellWide]}>
               <Input placeholder="Ex: Anestesiologia" value={professionalSpecialty} onChangeText={setProfessionalSpecialty} />
             </Field>
-            <Field label="Custo padrão por procedimento" style={styles.cell}>
+            <Field label="Custo padrão por procedimento" style={[styles.cell, isWide && styles.cellWide]}>
               <NumberInput prefix="R$" min={0} value={professionalCost} onChange={setProfessionalCost} />
             </Field>
           </View>
@@ -133,13 +133,13 @@ export default function SettingsPage() {
 
         <Section title="Comissões padrão" description="Para os profissionais da clínica, aplicado aos procedimentos sem comissão própria. Terceirizados não recebem comissão e o custo deles fica fora do cálculo: a base é o preço menos esse custo ou, sem preço, os insumos mais o custo operacional.">
           <View style={row}>
-            <Field label="Cirurgias" style={styles.cell}>
+            <Field label="Cirurgias" style={[styles.cell, isWide && styles.cellWide]}>
               <NumberInput suffix="%" min={0} max={100} value={form.defaultVetCommissionSurgeryPercent ?? 0} onChange={(value) => update('defaultVetCommissionSurgeryPercent', value)} />
             </Field>
-            <Field label="Internação" style={styles.cell}>
+            <Field label="Internação" style={[styles.cell, isWide && styles.cellWide]}>
               <NumberInput suffix="%" min={0} max={100} value={form.defaultVetCommissionInternmentPercent ?? 0} onChange={(value) => update('defaultVetCommissionInternmentPercent', value)} />
             </Field>
-            <Field label="Banho & Tosa" style={styles.cell}>
+            <Field label="Banho & Tosa" style={[styles.cell, isWide && styles.cellWide]}>
               <NumberInput suffix="%" min={0} max={100} value={form.defaultVetCommissionBathPercent ?? 0} onChange={(value) => update('defaultVetCommissionBathPercent', value)} />
             </Field>
           </View>
@@ -202,8 +202,16 @@ function ChangePasswordCard() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError('A nova senha deve ter pelo menos 6 caracteres.');
+    if (newPassword.length < 10) {
+      setError('A nova senha deve conter no mínimo 10 caracteres.');
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      setError('A nova senha deve conter pelo menos uma letra maiúscula.');
+      return;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      setError('A nova senha deve conter pelo menos um caractere especial.');
       return;
     }
 
@@ -256,9 +264,10 @@ function ChangePasswordCard() {
         </Field>
 
         <Field label="Nova senha">
+          <Text style={styles.inputSubLabel}>Mínimo 10 caracteres, 1 letra maiúscula e 1 caractere especial</Text>
           <Input
             secureTextEntry
-            placeholder="Mínimo de 6 caracteres"
+            placeholder="Ex: Senha@12345"
             value={newPassword}
             onChangeText={setNewPassword}
           />
@@ -349,10 +358,12 @@ const styles = StyleSheet.create({
   section: { padding: 20, gap: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 2 },
   muted: { fontSize: 13, color: COLORS.muted },
+  inputSubLabel: { fontSize: 10, color: '#64748B', marginBottom: 6 },
   itemTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   row: { flexDirection: 'row', gap: 14 },
   column: { gap: 14 },
-  cell: { flex: 1 },
+  cell: { minWidth: 0 },
+  cellWide: { flex: 1 },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   listRow: {
     flexDirection: 'row',

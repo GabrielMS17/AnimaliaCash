@@ -36,6 +36,9 @@ export interface Insumo {
   packagePrice?: number; // Preço pago pela embalagem
   packageSize?: number; // Quantidade que vem na embalagem, na unidade de uso (ex: 20 par, 5000 ml)
   notes?: string;
+  brand?: string; // Marca / fabricante
+  minStock?: number; // Estoque mínimo, na unidade de uso (alerta de estoque baixo)
+  trackStock?: boolean; // Controla estoque? Sem valor: automático pela unidade (kWh, minuto, hora e diária não têm)
 }
 
 export interface ProcedureItem {
@@ -97,6 +100,7 @@ export interface ClinicSettings {
   defaultVetCommissionSurgeryPercent?: number; // Comissão padrão do cirurgião (% ex: 25%)
   defaultVetCommissionInternmentPercent?: number; // Comissão padrão do plantonista/internista (% ex: 20%)
   defaultVetCommissionBathPercent?: number; // Comissão padrão do tosador/banhista (% ex: 15%)
+  averageProductWastePercent: number; // Taxa média de desperdício informativa (%)
   includeLaborInCost: boolean;
 }
 

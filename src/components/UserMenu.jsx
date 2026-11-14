@@ -34,7 +34,7 @@ export default function UserMenu() {
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={`Conta de ${email}`}
-        style={({ pressed }) => [styles.avatar, pressed && { opacity: 0.8 }]}
+        style={({ pressed }) => [styles.avatar, styles.headerAvatar, pressed && { opacity: 0.8 }]}
       >
         <Text style={styles.avatarText}>{initial}</Text>
       </Pressable>
@@ -74,14 +74,21 @@ export default function UserMenu() {
 
 const styles = StyleSheet.create({
   avatar: {
-    width: 36,
-    height: 36,
+    flexShrink: 0,
     borderRadius: 18,
     backgroundColor: '#00A86B',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  headerAvatar: {
+    width: '10%',
+    minWidth: 28,
+    maxWidth: 36,
+    minHeight: 28,
+    maxHeight: 36,
+    aspectRatio: 1,
   },
   avatarLarge: { width: 44, height: 44, borderRadius: 22, borderColor: '#E2E8F0' },
   avatarText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
@@ -94,7 +101,8 @@ const styles = StyleSheet.create({
   loginButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   backdrop: { flex: 1, alignItems: 'flex-end', paddingTop: 100, paddingHorizontal: 16 },
   menu: {
-    width: 280,
+    width: '100%',
+    maxWidth: 280,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,

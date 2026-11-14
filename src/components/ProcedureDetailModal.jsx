@@ -94,7 +94,7 @@ export default function ProcedureDetailModal({ procedure, insumosMap, settings, 
         {calc.itemDetails.length > 0 ? (
           calc.itemDetails.map((item, index) => (
             <View key={`${item.insumoId}-${index}`} style={styles.itemRow}>
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[styles.itemName, item.missing && { color: COLORS.warning }]}>
                   {item.missing ? `⚠ Insumo não encontrado (${item.insumoId})` : item.insumoName}
                 </Text>
@@ -128,6 +128,7 @@ const styles = StyleSheet.create({
   },
   compositionRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 8,
     paddingVertical: 8,
@@ -135,12 +136,13 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  compositionLabel: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  compositionDetail: { flex: 1, fontSize: 13, color: COLORS.faint },
-  value: { fontSize: 14, fontWeight: '600', color: COLORS.text, minWidth: 80, textAlign: 'right' },
+  compositionLabel: { fontSize: 14, fontWeight: '600', color: COLORS.text, flexShrink: 1 },
+  compositionDetail: { flex: 1, minWidth: 0, fontSize: 13, color: COLORS.faint },
+  value: { fontSize: 14, fontWeight: '600', color: COLORS.text, minWidth: 80, flexShrink: 0, textAlign: 'right' },
   heading: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
   itemRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 10,
     paddingVertical: 8,
@@ -149,5 +151,5 @@ const styles = StyleSheet.create({
   },
   itemName: { fontSize: 14, color: COLORS.text },
   small: { fontSize: 12, color: COLORS.faint },
-  quantity: { fontSize: 13, color: COLORS.muted },
+  quantity: { fontSize: 13, color: COLORS.muted, flexShrink: 0 },
 });

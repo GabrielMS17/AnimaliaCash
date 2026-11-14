@@ -10,17 +10,19 @@ import {
   View
 } from 'react-native';
 import AppHeader from '../../components/AppHeader';
+import { NumberInput } from '../../components/ui';
 import { useAnimaliaData } from '../../store/AnimaliaDataContext';
 import { supabase } from '../../supabase';
 import { calculateProcedure } from '../../utils/costCalculations';
 
 export default function CustosETaxasScreen() {
-  const { procedures, insumosMap, settings } = useAnimaliaData();
+  const { procedures, insumosMap, settings, saveSettings } = useAnimaliaData();
   
   const [tab, setTab] = useState('custos'); // 'custos', 'variaveis', 'taxas'
   const [custosFixos, setCustosFixos] = useState([]);
   const [taxasPagamento, setTaxasPagamento] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [wasteRateInput, setWasteRateInput] = useState(settings.averageProductWastePercent ?? 0);
 
   // Estados do Modal de Cadastro / Edição
   const [modalVisible, setModalVisible] = useState(false);
@@ -50,6 +52,10 @@ export default function CustosETaxasScreen() {
   useEffect(() => {
     fetchFinancialData();
   }, []);
+
+  useEffect(() => {
+    setWasteRateInput(settings.averageProductWastePercent ?? 0);
+  }, [settings.averageProductWastePercent]);
 
   const fetchFinancialData = async () => {
     setLoading(true);
@@ -128,6 +134,7 @@ export default function CustosETaxasScreen() {
   };
 
   const diagnosticoIA = avaliarSaudeFinanceiraIA();
+  const wasteRateChanged = wasteRateInput !== (settings.averageProductWastePercent ?? 0);
 
   const handleOpenModalCriacao = () => {
     setEditandoId(null);
@@ -215,6 +222,16 @@ export default function CustosETaxasScreen() {
     }
   };
 
+  const handleSaveWasteRate = () => {
+    if (!Number.isFinite(wasteRateInput) || wasteRateInput < 0) {
+      alert('Informe uma taxa média de desperdício válida.');
+      return;
+    }
+
+    saveSettings({ ...settings, averageProductWastePercent: wasteRateInput });
+    alert('Taxa média de desperdício salva como referência. Ela não altera os custos calculados.');
+  };
+
   const promptDelete = (item) => {
     setItemParaDeletar(item);
     setDeleteModalVisible(true);
@@ -270,22 +287,22 @@ export default function CustosETaxasScreen() {
         {/* Métricas / Indicadores Dinâmicos */}
         <View style={styles.metricsRowContainer}>
           <View style={[styles.card, { flex: 1, marginBottom: 0 }]}>
-            <Text style={styles.metricTitle}>Hora/Sala Calculada</Text>
-            <Text style={styles.metricSub}>Baseado nos custos fixos</Text>
-            <Text style={[styles.metricValue, { marginTop: 6 }]}>{formatCurrency(horaSalaCalculada)} / h</Text>
+            <Text style={styles.metricTitle}>Hora/Sala</Text>
+            <Text style={styles.metricSub}>Custos fixos / 160h</Text>
+            <Text style={[styles.metricValue, { marginTop: 6, fontSize: 12 }]}>{formatCurrency(horaSalaCalculada)}/h</Text>
           </View>
 
           <View style={[styles.card, { flex: 1, marginBottom: 0 }]}>
-            <Text style={styles.metricTitle}>Total Variável Consolidado</Text>
-            <Text style={styles.metricSub}>Cirurgia, Internação, Banho e Tosa</Text>
-            <Text style={[styles.metricValue, { color: PRIMARY_DARK, marginTop: 6 }]}>{formatCurrency(totalCustosVariaveis)}</Text>
+            <Text style={styles.metricTitle}>Total Variável</Text>
+            <Text style={styles.metricSub}>Cirurgia, Internação, Banho</Text>
+            <Text style={[styles.metricValue, { color: PRIMARY_DARK, marginTop: 6, fontSize: 12 }]}>{formatCurrency(totalCustosVariaveis)}</Text>
           </View>
         </View>
 
         {/* CARD DO DIAGNÓSTICO FINANCEIRO POR MACHINE LEARNING */}
         <View style={[styles.card, { marginTop: 16 }]}>
           <View style={styles.aiHeaderRow}>
-            <Text style={styles.aiBadgeText}>🤖 DIAGNÓSTICO INTELIGENTE DA CLÍNICA (IA)</Text>
+            <Text style={styles.aiBadgeText}>DIAGNÓSTICO INTELIGENTE DA CLÍNICA (IA)</Text>
           </View>
           <Text style={styles.aiCardDesc}>
             O modelo analisa dinamicamente o volume dos seus custos fixos e as taxas médias cadastradas para auditar a saúde financeira.
@@ -294,7 +311,7 @@ export default function CustosETaxasScreen() {
           <View style={styles.aiResultBox}>
             <View style={{ flex: 1 }}>
               <Text style={styles.aiResultSub}>Taxa Média Aplicada: {taxaMediaCadastrada.toFixed(2)}%</Text>
-              <Text style={[styles.aiResultTitle, { color: diagnosticoIA.cor, fontSize: 15, marginTop: 4 }]}>
+              <Text style={[styles.aiResultTitle, { color: diagnosticoIA.cor, fontSize: 13, marginTop: 4 }]}>
                 {diagnosticoIA.status}
               </Text>
               <Text style={styles.aiMessageText}>{diagnosticoIA.msg}</Text>
@@ -323,21 +340,21 @@ export default function CustosETaxasScreen() {
             style={[styles.tabButton, tab === 'custos' && styles.tabButtonActive]}
             onPress={() => setTab('custos')}
           >
-            <Text style={[styles.tabText, tab === 'custos' && styles.tabTextActive]}>Custos Fixos</Text>
+            <Text style={[styles.tabText, tab === 'custos' && styles.tabTextActive]}>Fixos</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.tabButton, tab === 'variaveis' && styles.tabButtonActive]}
             onPress={() => setTab('variaveis')}
           >
-            <Text style={[styles.tabText, tab === 'variaveis' && styles.tabTextActive]}>Custos Variáveis</Text>
+            <Text style={[styles.tabText, tab === 'variaveis' && styles.tabTextActive]}>Variáveis</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.tabButton, tab === 'taxas' && styles.tabButtonActive]}
             onPress={() => setTab('taxas')}
           >
-            <Text style={[styles.tabText, tab === 'taxas' && styles.tabTextActive]}>Taxas de Pagamento</Text>
+            <Text style={[styles.tabText, tab === 'taxas' && styles.tabTextActive]}>Taxas</Text>
           </TouchableOpacity>
         </View>
 
@@ -349,24 +366,20 @@ export default function CustosETaxasScreen() {
         ) : tab === 'custos' ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Custos Fixos Cadastrados</Text>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.columnHeader, { flex: 2 }]}>Nome / Descrição</Text>
-              <Text style={[styles.columnHeader, { flex: 1.2 }]}>Categoria</Text>
-              <Text style={[styles.columnHeader, { flex: 1, textAlign: 'right' }]}>Valor Mensal</Text>
-              <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>Ações</Text>
-            </View>
 
             {custosFixos.length === 0 ? (
               <Text style={styles.emptyText}>Nenhum custo fixo cadastrado.</Text>
             ) : (
               custosFixos.map((item) => (
-                <View key={item.id} style={styles.tableRow}>
-                  <Text style={[styles.cellTextBold, { flex: 2 }]}>{item.nome}</Text>
-                  <Text style={[styles.cellText, { flex: 1.2 }]}>{item.categoria}</Text>
-                  <Text style={[styles.cellCost, { flex: 1, textAlign: 'right' }]}>
-                    {formatCurrency(item.valor)}
-                  </Text>
-                  <View style={styles.actionsCell}>
+                <View key={item.id} style={styles.cardItemRow}>
+                  <View style={styles.cardItemInfo}>
+                    <Text style={styles.cellTextBold} numberOfLines={2}>{item.nome}</Text>
+                    <Text style={styles.subCategoryText}>{item.categoria}</Text>
+                    <Text style={styles.cellCostMobile} numberOfLines={1}>
+                      {formatCurrency(item.valor)}
+                    </Text>
+                  </View>
+                  <View style={styles.actionsCellCard}>
                     <TouchableOpacity onPress={() => handleOpenModalEdicao(item)} style={styles.actionButtonEdit}>
                       <Text style={styles.actionEditText}>Editar</Text>
                     </TouchableOpacity>
@@ -380,54 +393,68 @@ export default function CustosETaxasScreen() {
           </View>
         ) : tab === 'variaveis' ? (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Custos Variáveis por Categoria (Consolidado)</Text>
-            <Text style={styles.aiCardDesc}>Clique em uma categoria para ver os itens detalhados calculados.</Text>
-            
-            <View style={styles.tableHeader}>
-              <Text style={[styles.columnHeader, { flex: 2 }]}>Categoria</Text>
-              <Text style={[styles.columnHeader, { flex: 1.2, textAlign: 'center' }]}>Qtd. Itens</Text>
-              <Text style={[styles.columnHeader, { flex: 1, textAlign: 'right' }]}>Valor Total</Text>
+            <Text style={styles.cardTitle}>Custos Variáveis por Categoria</Text>
+            <View style={styles.wasteRateEditor}>
+              <Text style={styles.inputLabel}>Taxa média de desperdício dos produtos (%)</Text>
+              <NumberInput
+                min={0}
+                value={wasteRateInput}
+                onChange={setWasteRateInput}
+                suffix="%"
+              />
+              <Text style={styles.wasteRateHelp}>
+                Valor informativo; não altera automaticamente os custos calculados.
+              </Text>
+              <TouchableOpacity
+                style={[styles.buttonPrimary, !wasteRateChanged && styles.buttonDisabled]}
+                onPress={handleSaveWasteRate}
+                disabled={!wasteRateChanged}
+              >
+                <Text style={styles.buttonText}>Salvar taxa média</Text>
+              </TouchableOpacity>
             </View>
+            <Text style={styles.aiCardDesc}>Toque em uma categoria para ver os itens detalhados.</Text>
 
             {custosVariaveisConsolidados.map((item) => (
               <TouchableOpacity
                 key={item.id}
-                style={styles.tableRowClickable}
+                style={styles.cardItemRow}
                 activeOpacity={0.7}
                 onPress={() => {
                   setCategoriaSelecionadaDetalhes(item.categoria);
                   setDetailsModalVisible(true);
                 }}
               >
-                <Text style={[styles.cellTextBold, { flex: 2, color: '#0284C7' }]}>{item.nome} 🔍</Text>
-                <Text style={[styles.cellText, { flex: 1.2, textAlign: 'center' }]}>{item.qtd} cad.</Text>
-                <Text style={[styles.cellCost, { flex: 1, textAlign: 'right' }]}>
-                  {formatCurrency(item.valor)}
-                </Text>
+                <View style={styles.cardItemInfo}>
+                  <Text style={[styles.cellTextBold, { color: '#0284C7' }]} numberOfLines={1}>{item.nome}</Text>
+                  <Text style={styles.subCategoryText}>{item.qtd} itens cadastrados</Text>
+                  <Text style={styles.cellCostMobile} numberOfLines={1}>
+                    {formatCurrency(item.valor)}
+                  </Text>
+                </View>
+                <View style={styles.actionsCellCard}>
+                  <Text style={styles.detailArrowText}>Ver Detalhes</Text>
+                </View>
               </TouchableOpacity>
             ))}
           </View>
         ) : (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Taxas de Pagamento Cadastradas</Text>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.columnHeader, { flex: 1.5 }]}>Meio / Bandeira</Text>
-              <Text style={[styles.columnHeader, { flex: 1.8 }]}>Forma de Pagamento</Text>
-              <Text style={[styles.columnHeader, { flex: 0.8, textAlign: 'right' }]}>Taxa</Text>
-              <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>Ações</Text>
-            </View>
 
             {taxasPagamento.length === 0 ? (
               <Text style={styles.emptyText}>Nenhuma taxa cadastrada.</Text>
             ) : (
               taxasPagamento.map((item) => (
-                <View key={item.id} style={styles.tableRow}>
-                  <Text style={[styles.cellTextBold, { flex: 1.5 }]}>{item.bandeira}</Text>
-                  <Text style={[styles.cellText, { flex: 1.8 }]}>{item.forma}</Text>
-                  <Text style={[styles.cellBadge, { flex: 0.8, textAlign: 'right' }]}>
-                    {Number(item.taxa).toFixed(2)}%
-                  </Text>
-                  <View style={styles.actionsCell}>
+                <View key={item.id} style={styles.cardItemRow}>
+                  <View style={styles.cardItemInfo}>
+                    <Text style={styles.cellTextBold} numberOfLines={1}>{item.bandeira}</Text>
+                    <Text style={styles.subCategoryText}>{item.forma}</Text>
+                    <Text style={styles.cellBadgeMobile} numberOfLines={1}>
+                      Taxa: {Number(item.taxa).toFixed(2)}%
+                    </Text>
+                  </View>
+                  <View style={styles.actionsCellCard}>
                     <TouchableOpacity onPress={() => handleOpenModalEdicao(item)} style={styles.actionButtonEdit}>
                       <Text style={styles.actionEditText}>Editar</Text>
                     </TouchableOpacity>
@@ -469,14 +496,14 @@ export default function CustosETaxasScreen() {
                     .filter((p) => p.category === categoriaSelecionadaDetalhes)
                     .map((item) => (
                       <View key={item.id} style={styles.detailRowItem}>
-                        <View style={{ flex: 2 }}>
+                        <View style={{ flex: 1.4 }}>
                           <Text style={styles.cellTextBold}>{item.name}</Text>
                           <Text style={styles.subDetailText}>
                             {item.targetWeightKg ? `${item.targetWeightKg} kg • ` : ''}
                             Duração: {item.durationMinutes || 60} min
                           </Text>
                         </View>
-                        <Text style={[styles.cellCost, { flex: 1, textAlign: 'right' }]}>
+                        <Text style={[styles.cellCost, { flex: 1.0, textAlign: 'right' }]} numberOfLines={1}>
                           {formatCurrency(item.custoTotalCalculado)}
                         </Text>
                       </View>
@@ -550,10 +577,10 @@ export default function CustosETaxasScreen() {
               {tab === 'variaveis' && (
                 <>
                   <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Nome do Custo Variável / Procedimento Extra</Text>
+                    <Text style={styles.inputLabel}>Nome do Custo Variável / Extra</Text>
                     <TextInput
                       style={styles.input}
-                      placeholder="Ex: Exame de sangue extra, Material adicional..."
+                      placeholder="Ex: Exame extra, Material..."
                       placeholderTextColor="#94A3B8"
                       value={nomeInput}
                       onChangeText={setNomeInput}
@@ -662,9 +689,6 @@ export default function CustosETaxasScreen() {
         >
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { maxWidth: 360, alignItems: 'center' }]}>
-              <View style={styles.deleteIconContainer}>
-                <Text style={{ fontSize: 24 }}>⚠️</Text>
-              </View>
               <Text style={[styles.modalTitle, { textAlign: 'center', marginTop: 8 }]}>Excluir Registo</Text>
               <Text style={styles.deleteModalText}>
                 Tem certeza que deseja apagar "{itemParaDeletar?.nome || itemParaDeletar?.bandeira}"?
@@ -711,87 +735,87 @@ const BG_LIGHT = '#F8FAFC';
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
   container: { flex: 1 },
-  contentPadding: { padding: 16, paddingBottom: 32 },
-  pageHeader: { marginBottom: 16 },
-  sectionTitle: { fontSize: 22, fontWeight: '700', color: PRIMARY_DARK },
-  sectionSubtitle: { fontSize: 13, color: '#64748B', marginTop: 4 },
+  contentPadding: { padding: 10, paddingBottom: 32 },
+  pageHeader: { marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: PRIMARY_DARK },
+  sectionSubtitle: { fontSize: 11, color: '#64748B', marginTop: 4, lineHeight: 15 },
   metricsRowContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 6,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 18,
-    marginBottom: 16,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     elevation: 2,
   },
   aiHeaderRow: {
-    marginBottom: 6,
+    marginBottom: 4,
   },
   aiBadgeText: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '800',
     color: PRIMARY_DARK,
     letterSpacing: 0.5,
   },
   aiCardDesc: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#64748B',
-    marginBottom: 12,
-    lineHeight: 16,
+    marginBottom: 8,
+    lineHeight: 14,
   },
   aiResultBox: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 14,
+    borderRadius: 8,
+    padding: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 14,
+    marginBottom: 6,
   },
   aiResultSub: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#64748B',
     marginBottom: 2,
     fontWeight: '600',
   },
   aiResultTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   aiMessageText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#334155',
-    marginTop: 6,
-    lineHeight: 16,
+    marginTop: 3,
+    lineHeight: 14,
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 14 },
-  metricTitle: { fontWeight: '700', fontSize: 13, color: PRIMARY_DARK },
-  metricSub: { fontSize: 11, color: '#64748B', marginTop: 2 },
-  metricValue: { fontSize: 16, fontWeight: '800', color: ACCENT_GREEN },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 10 },
+  metricTitle: { fontWeight: '700', fontSize: 11, color: PRIMARY_DARK },
+  metricSub: { fontSize: 9, color: '#64748B', marginTop: 2 },
+  metricValue: { fontSize: 13, fontWeight: '800', color: ACCENT_GREEN },
   buttonPrimary: {
     backgroundColor: ACCENT_GREEN,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  buttonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
   tabContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
-    gap: 6,
+    marginBottom: 12,
+    gap: 4,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+    borderRadius: 6,
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
     borderColor: '#CBD5E1',
@@ -803,68 +827,51 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: '#475569',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   tabTextActive: {
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  tableHeader: {
+  cardItemRow: {
     flexDirection: 'row',
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  columnHeader: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    textTransform: 'uppercase',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-    alignItems: 'center',
   },
-  tableRowClickable: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-    paddingHorizontal: 4,
-    borderRadius: 6,
-    marginVertical: 2,
+  cardItemInfo: {
+    flex: 1,
+    paddingRight: 8,
   },
   cellTextBold: {
     fontWeight: '700',
     color: PRIMARY_DARK,
-    fontSize: 13,
+    fontSize: 12,
   },
-  cellText: {
+  subCategoryText: {
+    fontSize: 10,
     color: '#64748B',
-    fontSize: 13,
+    marginTop: 2,
   },
-  cellCost: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: PRIMARY_DARK,
-  },
-  cellBadge: {
-    fontSize: 13,
-    fontWeight: '700',
+  cellCostMobile: {
+    fontSize: 12,
+    fontWeight: '800',
     color: ACCENT_GREEN,
+    marginTop: 4,
   },
-  actionsCell: {
-    flex: 1,
+  cellBadgeMobile: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: PRIMARY_DARK,
+    marginTop: 4,
+  },
+  actionsCellCard: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
+    gap: 4,
+    alignItems: 'center',
   },
   actionButtonEdit: {
     backgroundColor: '#E2E8F0',
@@ -874,7 +881,7 @@ const styles = StyleSheet.create({
   },
   actionEditText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     color: PRIMARY_DARK,
   },
   actionButtonDelete: {
@@ -885,8 +892,13 @@ const styles = StyleSheet.create({
   },
   actionDeleteText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#EF4444',
+  },
+  detailArrowText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0284C7',
   },
   loadingContainer: {
     padding: 30,
@@ -895,29 +907,29 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    fontSize: 13,
+    fontSize: 11,
     color: '#64748B',
     fontWeight: '600',
   },
   emptyText: {
     textAlign: 'center',
     color: '#94A3B8',
-    paddingVertical: 20,
-    fontSize: 13,
+    paddingVertical: 16,
+    fontSize: 11,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 10,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 24,
+    padding: 16,
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 380,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -927,59 +939,59 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
-    paddingBottom: 10,
-    marginBottom: 10,
+    paddingBottom: 8,
+    marginBottom: 8,
   },
   detailRowItem: {
     flexDirection: 'row',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     alignItems: 'center',
   },
   subDetailText: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#64748B',
     marginTop: 2,
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 16 },
-  deleteIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FEF2F2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
+  modalTitle: { fontSize: 15, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 10 },
   deleteModalText: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#64748B',
     textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 18,
+    marginBottom: 14,
+    lineHeight: 15,
   },
-  inputContainer: { marginBottom: 14 },
-  inputLabel: { fontSize: 12, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 6 },
+  inputContainer: { marginBottom: 10 },
+  inputLabel: { fontSize: 10, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 4 },
+  wasteRateEditor: {
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  wasteRateHelp: { fontSize: 10, color: '#64748B', marginTop: 6, marginBottom: 8 },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    fontSize: 12,
     color: PRIMARY_DARK,
   },
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 4,
   },
   chipButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 7,
+    borderRadius: 5,
     backgroundColor: '#F1F5F9',
     borderWidth: 1,
     borderColor: '#CBD5E1',
@@ -989,7 +1001,7 @@ const styles = StyleSheet.create({
     borderColor: PRIMARY_DARK,
   },
   chipText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#475569',
     fontWeight: '600',
   },
@@ -997,21 +1009,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  modalButtonsRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  modalButton: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  modalButtonsRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  modalButton: { flex: 1, paddingVertical: 9, borderRadius: 6, alignItems: 'center' },
   modalButtonCancel: { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#CBD5E1' },
-  modalButtonCancelText: { color: '#475569', fontWeight: '700', fontSize: 13 },
+  modalButtonCancelText: { color: '#475569', fontWeight: '700', fontSize: 11 },
   modalButtonSave: { backgroundColor: ACCENT_GREEN },
-  modalButtonSaveText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  modalButtonSaveText: { color: '#FFFFFF', fontWeight: '700', fontSize: 11 },
   modalButtonConfirmDelete: { backgroundColor: '#EF4444' },
-  modalButtonConfirmDeleteText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  modalButtonConfirmDeleteText: { color: '#FFFFFF', fontWeight: '700', fontSize: 11 },
   footerContainer: {
-    marginTop: 24,
-    paddingVertical: 16,
+    width: '100%',
+    marginTop: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     alignItems: 'center',
   },
-  footerText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
-  footerSubtext: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  footerText: { width: '100%', fontSize: 11, lineHeight: 15, fontWeight: '600', color: '#64748B', textAlign: 'center' },
+  footerSubtext: { width: '100%', fontSize: 10, lineHeight: 14, color: '#94A3B8', marginTop: 2, textAlign: 'center' },
 });

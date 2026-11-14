@@ -51,6 +51,7 @@ function settingsRow(settings) {
     default_vet_commission_surgery_percent: orNull(settings.defaultVetCommissionSurgeryPercent),
     default_vet_commission_internment_percent: orNull(settings.defaultVetCommissionInternmentPercent),
     default_vet_commission_bath_percent: orNull(settings.defaultVetCommissionBathPercent),
+    average_product_waste_percent: settings.averageProductWastePercent ?? 0,
     include_labor_in_cost: Boolean(settings.includeLaborInCost),
     updated_at: new Date().toISOString(),
   };
@@ -74,6 +75,9 @@ const insumoRow = (insumo) => ({
   package_price: orNull(insumo.packagePrice),
   package_size: orNull(insumo.packageSize),
   notes: orNull(insumo.notes),
+  brand: orNull(insumo.brand),
+  min_stock: orNull(insumo.minStock),
+  track_stock: insumo.trackStock ?? null,
   updated_at: new Date().toISOString(),
 });
 
@@ -206,6 +210,7 @@ export async function pullAll() {
     defaultVetCommissionSurgeryPercent: num(row.default_vet_commission_surgery_percent),
     defaultVetCommissionInternmentPercent: num(row.default_vet_commission_internment_percent),
     defaultVetCommissionBathPercent: num(row.default_vet_commission_bath_percent),
+    averageProductWastePercent: num(row.average_product_waste_percent) ?? 0,
     includeLaborInCost: row.include_labor_in_cost,
     externalProfessionals: professionals.map((professional) => ({
       id: professional.id,
@@ -230,6 +235,9 @@ export async function pullAll() {
       packagePrice: num(insumo.package_price),
       packageSize: num(insumo.package_size),
       notes: insumo.notes ?? undefined,
+      brand: insumo.brand ?? undefined,
+      minStock: num(insumo.min_stock),
+      trackStock: insumo.track_stock ?? undefined,
     })),
     procedures: procedures.map((procedure) => {
       const procedureAssignments = (assignmentsByProcedure.get(procedure.id) ?? [])
