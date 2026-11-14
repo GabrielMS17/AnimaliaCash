@@ -4,6 +4,8 @@
 
 O **Animalia Cash** é uma solução completa desenvolvida para controlar com precisão o custo operacional de atendimentos veterinários e estéticos. O sistema automatiza a conversão de compras em lote (frascos de medicamentos em mL, pacotes de insumos e utensílios por vida útil) em custos unitários de consumo, permitindo o abate automático de estoque e o cálculo do Lucro Líquido por atendimento em tempo real.
 
+🌐 **Acesse a versão web:** [https://animaliacash.pages.dev](https://animaliacash.pages.dev)
+
 ---
 
 ## Tecnologias Utilizadas
