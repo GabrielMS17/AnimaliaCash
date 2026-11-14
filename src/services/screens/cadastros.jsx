@@ -9,7 +9,9 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { Select } from '../../components/ui';
 import { supabase } from '../../supabase';
+import { buildCrmv, formatCrmv, onlyCrmvDigits, UFS, validateCrmv } from '../../utils/crmv';
 
 export default function CadastrosScreen() {
   const [perfis, setPerfis] = useState([]);
@@ -21,6 +23,7 @@ export default function CadastrosScreen() {
   const [emailInput, setEmailInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
   const [roleInput, setRoleInput] = useState('Veterinário');
+  const [crmvUfInput, setCrmvUfInput] = useState('');
   const [crmvInput, setCrmvInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -77,15 +80,11 @@ export default function CadastrosScreen() {
       return;
     }
 
-    // Validação do CRMV para Veterinário (mínimo 3 e máximo 5 caracteres)
+    // Validação do CRMV para Veterinário: UF do conselho regional + número (só dígitos)
     if (roleInput === 'Veterinário') {
-      const crmvClean = crmvInput.trim();
-      if (!crmvClean) {
-        showAlert('O CRMV é obrigatório para cadastros com o perfil de Veterinário.');
-        return;
-      }
-      if (crmvClean.length < 3 || crmvClean.length > 5) {
-        showAlert('O CRMV deve ter no mínimo 3 e no máximo 5 caracteres.');
+      const crmvError = validateCrmv(crmvUfInput, crmvInput);
+      if (crmvError) {
+        showAlert(crmvError);
         return;
       }
     }
@@ -122,7 +121,7 @@ export default function CadastrosScreen() {
         nome: nomeInput,
         email: emailInput.trim(),
         role: roleInput,
-        crmv: roleInput === 'Veterinário' ? crmvInput.trim() : null,
+        crmv: roleInput === 'Veterinário' ? buildCrmv(crmvUfInput, crmvInput) : null,
         status: 'Ativo',
       };
 
@@ -143,6 +142,7 @@ export default function CadastrosScreen() {
       setEmailInput('');
       setSenhaInput('');
       setRoleInput('Veterinário');
+      setCrmvUfInput('');
       setCrmvInput('');
       setModalVisible(false);
 
@@ -256,7 +256,7 @@ export default function CadastrosScreen() {
                     {p.role === 'Veterinário' && (
                       <View style={styles.cardFooterRow}>
                         <Text style={styles.crmvLabel}>CRMV:</Text>
-                        <Text style={styles.crmvValue}>{p.crmv ? p.crmv : 'Não informado'}</Text>
+                        <Text style={styles.crmvValue}>{formatCrmv(p.crmv)}</Text>
                       </View>
                     )}
 
@@ -352,15 +352,27 @@ export default function CadastrosScreen() {
               {/* CRMV Obrigatório apenas se Veterinário */}
               {roleInput === 'Veterinário' && (
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>CRMV * (3 a 5 caracteres)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Ex: 12345"
-                    placeholderTextColor="#94A3B8"
-                    maxLength={5}
-                    value={crmvInput}
-                    onChangeText={setCrmvInput}
-                  />
+                  <Text style={styles.inputLabel}>CRMV * (UF do conselho e número)</Text>
+                  <Text style={styles.inputSubLabel}>Apenas números, até 6 dígitos. Ex: CRMV-SP nº 12345</Text>
+                  <View style={styles.crmvRow}>
+                    <Select
+                      value={crmvUfInput}
+                      placeholder="UF"
+                      options={UFS.map((uf) => ({ value: uf, label: uf }))}
+                      onChange={setCrmvUfInput}
+                      style={styles.crmvUf}
+                    />
+                    <TextInput
+                      style={[styles.input, styles.crmvNumber]}
+                      placeholder="Ex: 12345"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="number-pad"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={crmvInput}
+                      onChangeText={(text) => setCrmvInput(onlyCrmvDigits(text))}
+                    />
+                  </View>
                 </View>
               )}
 
@@ -615,6 +627,9 @@ const styles = StyleSheet.create({
   inputContainer: { marginBottom: 14 },
   inputLabel: { fontSize: 12, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 4 },
   inputSubLabel: { fontSize: 10, color: '#64748B', marginBottom: 6 },
+  crmvRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  crmvUf: { width: 96 },
+  crmvNumber: { flex: 1 },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
