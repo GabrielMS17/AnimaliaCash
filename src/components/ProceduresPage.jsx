@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
 import { calculateProcedure, formatBRL, formatDuration, matchesWeightRange, WEIGHT_RANGES } from '../utils/costCalculations';
+import ProcedureConsumeModal from './ProcedureConsumeModal';
 import ProcedureDetailModal from './ProcedureDetailModal';
 import ProcedureEditModal from './ProcedureEditModal';
-import { Button, COLORS, confirmAction, Input, SECTIONS, SectionHeader, Segmented, useAccent, useIsWide } from './ui';
+import { Button, COLORS, confirmAction, Input, notify, SECTIONS, SectionHeader, Segmented, useAccent, useIsWide } from './ui';
 
 const CATEGORY_HEADER = {
   banho_tosa: { description: 'Custo de cada serviço por porte do animal.', newLabel: 'Novo banho & tosa' },
@@ -19,7 +20,7 @@ const WEIGHT_OPTIONS = WEIGHT_RANGES.map((range) => ({ value: range.id, label: r
 
 /** Página de Cirurgias, Internação ou Banho & Tosa: lista, filtros e cadastro de procedimentos. */
 export default function ProceduresPage({ category }) {
-  const { procedures, insumos, insumosMap, settings, saveProcedure, duplicateProcedure, deleteProcedure, saveInsumo, saveProfessional } = useAnimaliaData();
+  const { procedures, insumos, insumosMap, settings, saveProcedure, duplicateProcedure, deleteProcedure, saveInsumo, saveProfessional, flushPending } = useAnimaliaData();
   const isWide = useIsWide();
   const { width } = useWindowDimensions();
   const columns = width >= 1100 ? 3 : width >= 680 ? 2 : 1;
@@ -28,6 +29,7 @@ export default function ProceduresPage({ category }) {
   const [weightRange, setWeightRange] = useState('todos');
   const [detailProcedure, setDetailProcedure] = useState(null);
   const [editing, setEditing] = useState(null); // null = fechado, {} = novo, procedimento = edição
+  const [consuming, setConsuming] = useState(null); // procedimento sendo registrado como realizado
 
   const header = CATEGORY_HEADER[category];
   const categoryProcedures = useMemo(() => procedures.filter((procedure) => procedure.category === category), [procedures, category]);
@@ -77,6 +79,7 @@ export default function ProceduresPage({ category }) {
                   onOpen={() => setDetailProcedure(procedure)}
                   onEdit={() => setEditing(procedure)}
                   onDuplicate={() => duplicateProcedure(procedure)}
+                  onRegister={() => setConsuming(procedure)}
                   onDelete={() => handleDelete(procedure)}
                 />
               </View>
@@ -117,6 +120,20 @@ export default function ProceduresPage({ category }) {
         />
       )}
 
+      {consuming && (
+        <ProcedureConsumeModal
+          procedure={consuming}
+          insumosMap={insumosMap}
+          flushPending={flushPending}
+          onClose={() => setConsuming(null)}
+          onDone={(times) => {
+            const name = consuming.name;
+            setConsuming(null);
+            notify('Estoque atualizado', `${name}: ${times === 1 ? 'realização registrada' : `${times} realizações registradas`} e itens baixados do estoque.`);
+          }}
+        />
+      )}
+
       {editing && (
         <ProcedureEditModal
           procedure={editing.id ? editing : null}
@@ -137,7 +154,7 @@ export default function ProceduresPage({ category }) {
   );
 }
 
-function ProcedureCard({ procedure, insumosMap, settings, onOpen, onEdit, onDuplicate, onDelete }) {
+function ProcedureCard({ procedure, insumosMap, settings, onOpen, onEdit, onDuplicate, onDelete, onRegister }) {
   const accent = useAccent();
   const calc = calculateProcedure(procedure, insumosMap, settings);
   const hasMissingItems = calc.itemDetails.some((item) => item.missing);
@@ -162,6 +179,7 @@ function ProcedureCard({ procedure, insumosMap, settings, onOpen, onEdit, onDupl
         </View>
       </Pressable>
       <View style={styles.cardActions}>
+        <Button small variant="ghost" label="Registrar realização" onPress={onRegister} />
         <Button small variant="ghost" label="Editar" onPress={onEdit} />
         <Button small variant="ghost" label="Duplicar" onPress={onDuplicate} />
         <Button small variant="ghost" label="Excluir" onPress={onDelete} style={{ marginLeft: 'auto' }} />

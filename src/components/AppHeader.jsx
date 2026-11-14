@@ -13,7 +13,6 @@ const NAV_ORDER = [
   'banho_tosa',
   'cirurgia',
   'internacao',
-  'insumos',
 ];
 
 /** Cabeçalho institucional e navegação dos módulos permitidos para o perfil atual. */

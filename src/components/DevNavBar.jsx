@@ -10,7 +10,6 @@ const navItems = [
   { href: '/templates', label: 'Templates' },
   { href: '/custos', label: 'Custos e Taxas' },
   { href: '/cirurgia', label: 'Cirurgias' },
-  { href: '/insumos', label: 'Insumos' },
   { href: '/internacao', label: 'Internação' },
   { href: '/banho-tosa', label: 'Banho & Tosa' },
   { href: '/cadastros', label: 'Cadastros' },

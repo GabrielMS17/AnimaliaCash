@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { NON_STOCK_UNITS } from '../services/stockService';
 import { formatBRL, formatDecimal, formatUnitCost } from '../utils/costCalculations';
 import { AppModal, Button, Checkbox, COLORS, ErrorBanner, Field, Input, NumberInput, Select, useAccent, useIsWide } from './ui';
 
@@ -63,6 +64,12 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
   const [packageSize, setPackageSize] = useState(insumo?.packageSize ?? 0);
   const [manualCost, setManualCost] = useState(insumo?.costPerUnit ?? 0);
   const [notes, setNotes] = useState(insumo?.notes ?? '');
+  const [brand, setBrand] = useState(insumo?.brand ?? '');
+  const [minStock, setMinStock] = useState(insumo?.minStock ?? 0);
+  // Sem escolha do usuário, segue a unidade: kWh, minuto, hora e diária não têm estoque
+  const [trackChoice, setTrackChoice] = useState(insumo?.trackStock);
+  const autoTrack = !NON_STOCK_UNITS.includes(unit);
+  const trackStock = trackChoice ?? autoTrack;
   const [errorMsg, setErrorMsg] = useState('');
 
   const packageLabel = PACKAGE_OPTIONS.find((option) => option.value === packageType)?.label.toLowerCase() ?? 'embalagem';
@@ -104,6 +111,10 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
     if (sanitizedNotes.length > 255) {
       return setErrorMsg('As observações devem ter no máximo 255 caracteres.');
     }
+    const sanitizedBrand = brand.trim();
+    if (sanitizedBrand.length > 80) {
+      return setErrorMsg('A marca deve ter no máximo 80 caracteres.');
+    }
 
     // 4. Envio seguro com dados validados
     onSave({
@@ -116,6 +127,9 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
       packagePrice: directCost ? undefined : Number(packagePrice),
       packageSize: directCost ? undefined : Number(packageSize),
       notes: sanitizedNotes || undefined,
+      brand: sanitizedBrand || undefined,
+      minStock: trackStock && minStock > 0 ? minStock : undefined,
+      trackStock: trackStock === autoTrack ? undefined : trackStock,
     });
   };
 
@@ -123,7 +137,7 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
 
   return (
     <AppModal
-      title={isEditing ? 'Editar insumo' : 'Novo insumo'}
+      title={isEditing ? 'Editar item do estoque' : 'Novo item do estoque'}
       subtitle="Alterações no custo refletem em todos os procedimentos que usam este item."
       maxWidth={560}
       onClose={onClose}
@@ -233,6 +247,24 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
         }}
         label="Informar custo unitário direto (sem embalagem, ex: kWh, diária)"
       />
+
+      <View style={styles.group}>
+        <Text style={styles.groupTitle}>Estoque</Text>
+        <Checkbox
+          checked={trackStock}
+          onChange={setTrackChoice}
+          label="Controlar o estoque deste item (desmarque para energia, água da torneira, tempo...)"
+        />
+        {trackStock && (
+          <Field label="Estoque mínimo (opcional)" hint="Abaixo deste saldo o item aparece com alerta de reposição.">
+            <NumberInput min={0} placeholder="0" value={minStock} onChange={setMinStock} suffix={unit} style={{ width: 170 }} />
+          </Field>
+        )}
+      </View>
+
+      <Field label="Marca / fabricante (opcional)">
+        <Input placeholder="Ex: Zoetis, Ourofino" value={brand} onChangeText={setBrand} />
+      </Field>
 
       <Field label="Observações (opcional)">
         <Input placeholder="Ex: Lâmina nº 15 estéril" value={notes} onChangeText={setNotes} />

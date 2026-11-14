@@ -1,11 +1,10 @@
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
-import InsumosPage from './InsumosPage';
 import ProceduresPage from './ProceduresPage';
+import StockPage from './StockPage';
 import SettingsPage from './SettingsPage';
 import { AccentProvider, SECTIONS } from './ui';
 import AppHeader from './AppHeader';
-import EstoqueScreen from '../services/screens/estoqueScreen';
 import CadastrosScreen from '../services/screens/cadastros';
 import { supabase } from '../supabase';
 
@@ -19,15 +18,13 @@ export default function AnimaliaDataRoute({ section }) {
       <View style={styles.mainWrapper}>
         <AppHeader />
 
-        {section === 'estoque' ? (
-          <EstoqueScreen />
-        ) : section === 'cadastros' ? (
+        {section === 'cadastros' ? (
           <CadastrosScreen supabaseClient={supabase} />
         ) : (
           <ScrollView style={styles.container} contentContainerStyle={styles.contentPadding}>
             <View style={styles.content}>
               {!loaded && <ActivityIndicator size="large" color={current.accent} style={{ marginTop: 40 }} />}
-              {loaded && section === 'insumos' && <InsumosPage />}
+              {loaded && section === 'estoque' && <StockPage />}
               {loaded && section === 'configuracoes' && <SettingsPage />}
               {loaded && ['cirurgia', 'internacao', 'banho_tosa'].includes(section) && <ProceduresPage category={section} />}
             </View>

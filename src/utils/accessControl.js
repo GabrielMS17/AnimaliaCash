@@ -4,7 +4,6 @@ export const ANIMAL_GROOMER_ROLE = 'Esteticista Animal';
 export const VETERINARIAN_ALLOWED_ROUTES = [
   '/cirurgia',
   '/configuracoes',
-  '/insumos',
   '/internacao',
 ];
 
@@ -16,7 +15,7 @@ export const ADMINISTRATOR_ALLOWED_ROUTES = [
   '/templates',
 ];
 
-export const ANIMAL_GROOMER_ALLOWED_ROUTES = ['/banho-tosa', '/insumos'];
+export const ANIMAL_GROOMER_ALLOWED_ROUTES = ['/banho-tosa'];
 
 export function isKnownRole(role) {
   return role === 'Administrador' || role === VETERINARIAN_ROLE || role === ANIMAL_GROOMER_ROLE;

@@ -36,6 +36,9 @@ export interface Insumo {
   packagePrice?: number; // Preço pago pela embalagem
   packageSize?: number; // Quantidade que vem na embalagem, na unidade de uso (ex: 20 par, 5000 ml)
   notes?: string;
+  brand?: string; // Marca / fabricante
+  minStock?: number; // Estoque mínimo, na unidade de uso (alerta de estoque baixo)
+  trackStock?: boolean; // Controla estoque? Sem valor: automático pela unidade (kWh, minuto, hora e diária não têm)
 }
 
 export interface ProcedureItem {

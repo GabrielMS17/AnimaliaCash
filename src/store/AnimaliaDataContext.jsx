@@ -195,6 +195,13 @@ export function AnimaliaDataProvider({ children }) {
     return { state: 'ok', message: 'Dados enviados ao Supabase.' };
   }), [enqueue, pushPending]);
 
+  // Garante que insumos e procedimentos recém-editados já estão no banco (o estoque depende deles).
+  // Só envia se o dispositivo já sincronizou antes, para não subir dados de exemplo por engano.
+  const flushPending = useCallback(() => enqueue(async () => {
+    if (baseRef.current) await pushPending();
+    return null;
+  }, { quiet: true }), [enqueue, pushPending]);
+
   const pullNow = useCallback(() => enqueue(async () => {
     const local = dataRef.current;
     const remote = await pullAll();
@@ -318,8 +325,9 @@ export function AnimaliaDataProvider({ children }) {
       syncStatus,
       pushNow,
       pullNow,
+      flushPending,
     };
-  }, [data, loaded, session, sessionLoaded, profileRole, profileRoleLoaded, profileRoleUserId, autoSync, syncStatus, update, pushNow, pullNow]);
+  }, [data, loaded, session, sessionLoaded, profileRole, profileRoleLoaded, profileRoleUserId, autoSync, syncStatus, update, pushNow, pullNow, flushPending]);
 
   return <AnimaliaDataContext.Provider value={value}>{children}</AnimaliaDataContext.Provider>;
 }
