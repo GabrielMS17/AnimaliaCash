@@ -240,8 +240,17 @@ function ChangePasswordCard() {
       setError('Preencha todos os campos de senha.');
       return;
     }
-    if (form.next.length < 6) {
-      setError('A nova senha deve ter pelo menos 6 caracteres.');
+    // Mesmas regras do app: mínimo 10 caracteres, 1 maiúscula e 1 caractere especial
+    if (form.next.length < 10) {
+      setError('A nova senha deve conter no mínimo 10 caracteres.');
+      return;
+    }
+    if (!/[A-Z]/.test(form.next)) {
+      setError('A nova senha deve conter pelo menos uma letra maiúscula.');
+      return;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(form.next)) {
+      setError('A nova senha deve conter pelo menos um caractere especial.');
       return;
     }
     if (form.next !== form.confirm) {
@@ -274,8 +283,8 @@ function ChangePasswordCard() {
       <Field label="Senha atual">
         <input type="password" autoComplete="current-password" placeholder="Digite sua senha atual" value={form.current} onChange={set('current')} />
       </Field>
-      <Field label="Nova senha">
-        <input type="password" autoComplete="new-password" placeholder="Mínimo de 6 caracteres" value={form.next} onChange={set('next')} />
+      <Field label="Nova senha" hint="Mínimo 10 caracteres, 1 letra maiúscula e 1 caractere especial">
+        <input type="password" autoComplete="new-password" placeholder="Ex: Senha@12345" value={form.next} onChange={set('next')} />
       </Field>
       <Field label="Confirmar nova senha">
         <input type="password" autoComplete="new-password" placeholder="Digite novamente a nova senha" value={form.confirm} onChange={set('confirm')} />

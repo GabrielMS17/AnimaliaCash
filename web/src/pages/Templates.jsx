@@ -93,7 +93,7 @@ export default function Templates() {
         <div className="card table-card">
           <h2>Procedimentos Padronizados</h2>
           <div className="table-scroll">
-            <table>
+            <table className="stack-mobile">
               <thead>
                 <tr>
                   <th>Nome do Procedimento</th>
@@ -106,10 +106,10 @@ export default function Templates() {
                 {visiveis.length === 0 && <tr><td colSpan={4} className="empty-text">Nenhum template encontrado nesta categoria.</td></tr>}
                 {visiveis.map((item) => (
                   <tr key={item.id}>
-                    <td><strong>{item.nome}</strong></td>
-                    <td>{item.categoria}</td>
-                    <td className="center">{item.insumos_count} itens</td>
-                    <td className="right accent-text">{item.tempo_estimado}</td>
+                    <td data-label=""><strong>{item.nome}</strong></td>
+                    <td data-label="Categoria">{item.categoria}</td>
+                    <td data-label="Insumos" className="center">{item.insumos_count} itens</td>
+                    <td data-label="Tempo estimado" className="right accent-text">{item.tempo_estimado}</td>
                   </tr>
                 ))}
               </tbody>

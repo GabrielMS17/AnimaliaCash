@@ -6,9 +6,9 @@ import { calculateProcedure, formatBRL } from '../utils/costCalculations';
 
 // Mesma tela do app: custos fixos e taxas ficam nas tabelas custos_fixos e taxas_pagamento do Supabase
 const TABS = [
-  { value: 'custos', label: 'Custos Fixos' },
-  { value: 'variaveis', label: 'Custos Variáveis' },
-  { value: 'taxas', label: 'Taxas de Pagamento' },
+  { value: 'custos', label: 'Fixos' },
+  { value: 'variaveis', label: 'Variáveis' },
+  { value: 'taxas', label: 'Taxas' },
 ];
 const CATEGORIAS_CUSTOS = ['Estrutura', 'Utilidades', 'Pessoal', 'Administrativo', 'Manutenção'];
 const CATEGORIAS_VARIAVEIS = [
@@ -36,7 +36,26 @@ function diagnose(totalFixed, averageFee, hasProcedures) {
 }
 
 export default function Custos() {
-  const { procedures, insumosMap, settings, saveProcedure } = useData();
+  const { procedures, insumosMap, settings, saveProcedure, saveSettings } = useData();
+  // Taxa média de desperdício: só informativa, guardada nas configurações da clínica (igual ao app)
+  const savedWasteRate = settings.averageProductWastePercent ?? 0;
+  const [wasteRate, setWasteRate] = useState(savedWasteRate);
+  const [wasteRateFor, setWasteRateFor] = useState(savedWasteRate);
+  const [wasteMessage, setWasteMessage] = useState('');
+  if (wasteRateFor !== savedWasteRate) {
+    // Valor mudou fora daqui (ex: baixado do Supabase): acompanha
+    setWasteRateFor(savedWasteRate);
+    setWasteRate(savedWasteRate);
+  }
+  const wasteRateChanged = wasteRate !== savedWasteRate;
+  const saveWasteRate = () => {
+    if (!Number.isFinite(wasteRate) || wasteRate < 0) {
+      setWasteMessage('Informe uma taxa média de desperdício válida.');
+      return;
+    }
+    saveSettings({ ...settings, averageProductWastePercent: wasteRate });
+    setWasteMessage('Taxa média de desperdício salva como referência. Ela não altera os custos calculados.');
+  };
   const [tab, setTab] = useState('custos');
   const [custosFixos, setCustosFixos] = useState([]);
   const [taxas, setTaxas] = useState([]);
@@ -171,22 +190,22 @@ export default function Custos() {
       <div className="metric-row">
         <div className="card metric">
           <div>
-            <strong>Hora/Sala Calculada</strong>
-            <small>Baseado nos custos fixos</small>
+            <strong>Hora/Sala</strong>
+            <small>Custos fixos / 160h</small>
           </div>
-          <b>{formatBRL(hourlyRoom)} / h</b>
+          <b>{formatBRL(hourlyRoom)}/h</b>
         </div>
         <div className="card metric">
           <div>
-            <strong>Total Variável Consolidado</strong>
-            <small>Cirurgia, Internação, Banho e Tosa</small>
+            <strong>Total Variável</strong>
+            <small>Cirurgia, Internação, Banho</small>
           </div>
           <b className="navy-text">{formatBRL(totalVariable)}</b>
         </div>
       </div>
 
       <div className="card">
-        <p className="ai-badge">🤖 DIAGNÓSTICO INTELIGENTE DA CLÍNICA (IA)</p>
+        <p className="ai-badge">DIAGNÓSTICO INTELIGENTE DA CLÍNICA (IA)</p>
         <p className="muted-text">
           O modelo analisa dinamicamente o volume dos seus custos fixos e as taxas médias cadastradas para auditar a saúde financeira.
         </p>
@@ -212,7 +231,7 @@ export default function Custos() {
         <div className="card table-card">
           <h2>Custos Fixos Cadastrados</h2>
           <div className="table-scroll">
-            <table>
+            <table className="stack-mobile">
               <thead>
                 <tr><th>Nome / Descrição</th><th>Categoria</th><th className="right">Valor Mensal</th><th className="center">Ações</th></tr>
               </thead>
@@ -220,10 +239,10 @@ export default function Custos() {
                 {custosFixos.length === 0 && <tr><td colSpan={4} className="empty-text">Nenhum custo fixo cadastrado.</td></tr>}
                 {custosFixos.map((item) => (
                   <tr key={item.id}>
-                    <td><strong>{item.nome}</strong></td>
-                    <td>{item.categoria}</td>
-                    <td className="right"><strong>{formatBRL(Number(item.valor))}</strong></td>
-                    <td className="center">
+                    <td data-label="Nome"><strong>{item.nome}</strong></td>
+                    <td data-label="Categoria">{item.categoria}</td>
+                    <td data-label="Valor mensal" className="right"><strong>{formatBRL(Number(item.valor))}</strong></td>
+                    <td data-label="" className="center actions-cell">
                       <div className="list-actions table-actions">
                         <button type="button" className="btn btn-secondary btn-small" onClick={() => openEdit(item)}>Editar</button>
                         <button type="button" className="btn btn-danger btn-small" onClick={() => setToDelete(item)}>Excluir</button>
@@ -237,23 +256,33 @@ export default function Custos() {
         </div>
       ) : tab === 'variaveis' ? (
         <div className="card table-card">
-          <h2>Custos Variáveis por Categoria (Consolidado)</h2>
-          <p className="muted-text">Clique em uma categoria para ver os itens detalhados calculados.</p>
+          <h2>Custos Variáveis por Categoria</h2>
+          <div className="waste-rate">
+            <Field label="Taxa média de desperdício dos produtos (%)" hint="Valor informativo; não altera automaticamente os custos calculados.">
+              <NumberInput min={0} label="Taxa média de desperdício" value={wasteRate} onChange={(value) => { setWasteRate(value); setWasteMessage(''); }} suffix="%" className="w-small" />
+            </Field>
+            <button type="button" className="btn btn-primary" disabled={!wasteRateChanged} onClick={saveWasteRate}>Salvar taxa média</button>
+            {wasteMessage && <p className={wasteMessage.startsWith('Informe') ? 'error-text' : 'saved-text'} role="status">{wasteMessage}</p>}
+          </div>
+          <p className="muted-text">Clique em uma categoria para ver os itens detalhados.</p>
           <div className="table-scroll">
-            <table>
+            <table className="stack-mobile">
               <thead>
-                <tr><th>Categoria</th><th className="center">Qtd. Itens</th><th className="right">Valor Total</th></tr>
+                <tr><th>Categoria</th><th className="center">Qtd. Itens</th><th className="right">Valor Total</th><th className="center">Ações</th></tr>
               </thead>
               <tbody>
                 {consolidated.map((item) => (
                   <tr key={item.value} className="clickable-row" onClick={() => setDetails(item.value)}>
-                    <td>
+                    <td data-label="">
                       <button type="button" className="link-button" onClick={(event) => { event.stopPropagation(); setDetails(item.value); }}>
-                        {item.label} 🔍
+                        {item.label}
                       </button>
                     </td>
-                    <td className="center">{item.count} cad.</td>
-                    <td className="right"><strong>{formatBRL(item.total)}</strong></td>
+                    <td data-label="Itens" className="center">{item.count} cad.</td>
+                    <td data-label="Valor total" className="right"><strong>{formatBRL(item.total)}</strong></td>
+                    <td data-label="" className="center actions-cell">
+                      <button type="button" className="btn btn-secondary btn-small" onClick={(event) => { event.stopPropagation(); setDetails(item.value); }}>Ver detalhes</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -264,7 +293,7 @@ export default function Custos() {
         <div className="card table-card">
           <h2>Taxas de Pagamento Cadastradas</h2>
           <div className="table-scroll">
-            <table>
+            <table className="stack-mobile">
               <thead>
                 <tr><th>Meio / Bandeira</th><th>Forma de Pagamento</th><th className="right">Taxa</th><th className="center">Ações</th></tr>
               </thead>
@@ -272,10 +301,10 @@ export default function Custos() {
                 {taxas.length === 0 && <tr><td colSpan={4} className="empty-text">Nenhuma taxa cadastrada.</td></tr>}
                 {taxas.map((item) => (
                   <tr key={item.id}>
-                    <td><strong>{item.bandeira}</strong></td>
-                    <td>{item.forma}</td>
-                    <td className="right accent-text">{Number(item.taxa).toFixed(2)}%</td>
-                    <td className="center">
+                    <td data-label="Meio / bandeira"><strong>{item.bandeira}</strong></td>
+                    <td data-label="Forma">{item.forma}</td>
+                    <td data-label="Taxa" className="right accent-text">{Number(item.taxa).toFixed(2)}%</td>
+                    <td data-label="" className="center actions-cell">
                       <div className="list-actions table-actions">
                         <button type="button" className="btn btn-secondary btn-small" onClick={() => openEdit(item)}>Editar</button>
                         <button type="button" className="btn btn-danger btn-small" onClick={() => setToDelete(item)}>Excluir</button>
@@ -324,11 +353,11 @@ export default function Custos() {
           )}
         >
           <div className="form-group">
-            <Field label={{ custos: 'Nome do Custo', variaveis: 'Nome do Custo Variável / Procedimento Extra', taxas: 'Meio / Bandeira' }[tab]}>
+            <Field label={{ custos: 'Nome do Custo', variaveis: 'Nome do Custo Variável / Extra', taxas: 'Meio / Bandeira' }[tab]}>
               <input
                 type="text"
                 autoFocus
-                placeholder={{ custos: 'Ex: Aluguel, Energia...', variaveis: 'Ex: Exame de sangue extra, Material adicional...', taxas: 'Ex: PIX, Cartão Visa...' }[tab]}
+                placeholder={{ custos: 'Ex: Aluguel, Energia...', variaveis: 'Ex: Exame extra, Material...', taxas: 'Ex: PIX, Cartão Visa...' }[tab]}
                 value={form.nome}
                 onChange={(event) => setForm({ ...form, nome: event.target.value })}
               />

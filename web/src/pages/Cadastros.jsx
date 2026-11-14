@@ -192,16 +192,16 @@ export default function Cadastros() {
             <Field label="E-mail Institucional *">
               <input type="email" autoComplete="off" placeholder="amanda@animaliacash.com" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
             </Field>
-            <Field label="Senha Provisória de Acesso *">
-              <input type="password" autoComplete="new-password" placeholder="Mínimo de 10, com maiúscula e símbolo" value={form.senha} onChange={(event) => setForm({ ...form, senha: event.target.value })} />
+            <Field label="Senha Provisória de Acesso *" hint="Mínimo 10 caracteres, 1 letra maiúscula e 1 caractere especial">
+              <input type="password" autoComplete="new-password" placeholder="Ex: Senha@12345" value={form.senha} onChange={(event) => setForm({ ...form, senha: event.target.value })} />
             </Field>
             <div className="field">
               <span className="field-label">Função / Perfil *</span>
               <Segmented label="Função" options={ROLES} value={form.role} onChange={(role) => setForm({ ...form, role })} />
             </div>
             {form.role === 'Veterinário' && (
-              <Field label="CRMV * (Obrigatório para Veterinário)">
-                <input type="text" placeholder="Ex: SP-12345" value={form.crmv} onChange={(event) => setForm({ ...form, crmv: event.target.value })} />
+              <Field label="CRMV * (3 a 5 caracteres)">
+                <input type="text" placeholder="Ex: 12345" maxLength={5} value={form.crmv} onChange={(event) => setForm({ ...form, crmv: event.target.value })} />
               </Field>
             )}
             {formError && <p className="error-text" role="alert">{formError}</p>}

@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 
 const friendlyError = (error) =>
-  error.message === 'Invalid login credentials' ? 'E-mail/CRMV ou senha incorretos.' : error.message || 'Ocorreu um erro ao conectar.';
+  error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos. Verifique os seus dados e tente novamente.' : error.message || 'Ocorreu um erro ao conectar.';
 
 export default function Login() {
   const { user, sessionLoaded, login } = useAuth();
@@ -45,16 +45,16 @@ export default function Login() {
       <main className="login-main">
         <form className="login-card" onSubmit={handleSubmit} noValidate>
           <h1>Acesse a Plataforma</h1>
-          <p className="muted">Entre com seu E-mail / CRMV e senha para continuar</p>
+          <p className="muted">Entre com seu E-mail e senha para continuar</p>
 
           {error && <div className="error-banner" role="alert">{error}</div>}
 
           <label className="field">
-            <span className="field-label">E-mail ou CRMV</span>
+            <span className="field-label">E-mail</span>
             <input
               type="text"
               autoComplete="username"
-              placeholder="exemplo@veterinaria.com ou CRMV 1234"
+              placeholder="exemplo@veterinaria.com"
               value={identifier}
               onChange={(event) => setIdentifier(event.target.value)}
             />
