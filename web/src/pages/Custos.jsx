@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Field, Modal, NumberInput, Segmented } from '../components/ui';
 import { useData } from '../store/DataContext';
+import { BCB_KEY_BY_FORMA, fetchBcbMdr } from '../services/bcbTaxas';
 import { supabase } from '../supabase';
 import { calculateProcedure, formatBRL } from '../utils/costCalculations';
 
@@ -59,6 +60,8 @@ export default function Custos() {
   const [tab, setTab] = useState('custos');
   const [custosFixos, setCustosFixos] = useState([]);
   const [taxas, setTaxas] = useState([]);
+  // Taxas médias do Banco Central (API de dados abertos), para comparar e preencher as taxas
+  const [bcb, setBcb] = useState({ state: 'loading' });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
@@ -91,6 +94,17 @@ export default function Custos() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchBcbMdr({ signal: controller.signal }).then(
+      (result) => setBcb({ state: 'ok', ...result }),
+      (bcbError) => bcbError.name !== 'AbortError' && setBcb({ state: 'error', message: bcbError.message }),
+    );
+    return () => controller.abort();
+  }, []);
+
+  const bcbRateFor = (forma) => (bcb.state === 'ok' ? bcb.rates[BCB_KEY_BY_FORMA[forma]] ?? null : null);
 
   const calculated = procedures.map((procedure) => ({
     ...procedure,
@@ -295,15 +309,16 @@ export default function Custos() {
           <div className="table-scroll">
             <table className="stack-mobile">
               <thead>
-                <tr><th>Meio / Bandeira</th><th>Forma de Pagamento</th><th className="right">Taxa</th><th className="center">Ações</th></tr>
+                <tr><th>Meio / Bandeira</th><th>Forma de Pagamento</th><th className="right">Taxa</th><th className="right">Média nacional (BCB)</th><th className="center">Ações</th></tr>
               </thead>
               <tbody>
-                {taxas.length === 0 && <tr><td colSpan={4} className="empty-text">Nenhuma taxa cadastrada.</td></tr>}
+                {taxas.length === 0 && <tr><td colSpan={5} className="empty-text">Nenhuma taxa cadastrada.</td></tr>}
                 {taxas.map((item) => (
                   <tr key={item.id}>
                     <td data-label="Meio / bandeira"><strong>{item.bandeira}</strong></td>
                     <td data-label="Forma">{item.forma}</td>
-                    <td data-label="Taxa" className="right accent-text">{Number(item.taxa).toFixed(2)}%</td>
+                    <td data-label="Taxa" className={bcbRateFor(item.forma) != null && Number(item.taxa) > bcbRateFor(item.forma) ? 'right danger-text' : 'right accent-text'}>{Number(item.taxa).toFixed(2)}%</td>
+                    <td data-label="Média nacional" className="right">{bcbRateFor(item.forma) != null ? `${bcbRateFor(item.forma).toFixed(2)}%` : '—'}</td>
                     <td data-label="" className="center actions-cell">
                       <div className="list-actions table-actions">
                         <button type="button" className="btn btn-secondary btn-small" onClick={() => openEdit(item)}>Editar</button>
@@ -381,6 +396,21 @@ export default function Custos() {
                 onChange={(valor) => setForm({ ...form, valor })}
               />
             </Field>
+            {tab === 'taxas' && (
+              <div className="bcb-hint">
+                {bcb.state === 'loading' && <span>Consultando o Banco Central…</span>}
+                {bcb.state === 'error' && <span>Banco Central indisponível no momento.</span>}
+                {bcb.state === 'ok' && bcbRateFor(form.categoria) != null && (
+                  <>
+                    <span>Média nacional para {form.categoria.toLowerCase()}: <strong>{bcbRateFor(form.categoria).toFixed(2)}%</strong> ({bcb.label})</span>
+                    <button type="button" className="btn btn-secondary btn-small" onClick={() => setForm({ ...form, valor: bcbRateFor(form.categoria) })}>
+                      Usar média do Banco Central
+                    </button>
+                  </>
+                )}
+                {bcb.state === 'ok' && bcbRateFor(form.categoria) == null && <span>O Banco Central não publica taxa média para esta forma de pagamento.</span>}
+              </div>
+            )}
             {formError && <p className="error-text" role="alert">{formError}</p>}
           </div>
         </Modal>

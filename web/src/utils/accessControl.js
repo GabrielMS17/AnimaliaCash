@@ -12,6 +12,7 @@ export const ADMINISTRATOR_ALLOWED_ROUTES = [
   '/configuracoes',
   '/custos',
   '/estoque',
+  '/resultado',
   '/templates',
 ];
 

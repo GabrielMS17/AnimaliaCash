@@ -6,6 +6,7 @@ export const SECTIONS = [
   { path: '/cadastros', label: 'Cadastros', accent: '#0C2D48', soft: '#E2E8F0' },
   { path: '/custos', label: 'Custos e Taxas', accent: '#0C2D48', soft: '#E2E8F0' },
   { path: '/estoque', label: 'Estoque', accent: '#00A86B', soft: '#D1FAE5' },
+  { path: '/resultado', label: 'Resultado do mês', accent: '#00A86B', soft: '#D1FAE5' },
   { path: '/templates', label: 'Templates', accent: '#0C2D48', soft: '#E2E8F0' },
   { path: '/banho-tosa', label: 'Banho & Tosa', accent: '#0284C7', soft: '#E0F2FE' },
   { path: '/cirurgia', label: 'Cirurgias', accent: '#E11D48', soft: '#FFE4E6' },
