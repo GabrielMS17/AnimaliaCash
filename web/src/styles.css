@@ -597,3 +597,21 @@ td strong { color: var(--navy); }
 .fee-source.bcb { background: #eff6ff; color: #1d4ed8; }
 .fee-source.none { background: #f1f5f9; color: #64748b; }
 .scheduled-line { margin: 12px 0 0; padding: 10px 14px; background: #f8fafc; border-left: 3px solid #0ea5e9; border-radius: 6px; font-size: 14px; }
+
+/* Atendimento: itens usados, novo atendimento e oferta após cadastrar ficha */
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.items-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 8px 0 6px; }
+.items-head .muted { font-size: 13px; }
+.items-editor .qty-input { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.items-editor .qty-input input { width: 84px; text-align: right; padding: 4px 6px; }
+.items-editor .item-tag { display: inline-block; width: auto; vertical-align: middle; margin-left: 8px; padding: 1px 6px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #fef3c7; color: #b45309; }
+.items-editor .item-added .item-tag { background: #eff6ff; color: #1d4ed8; }
+.items-editor .item-removed td:first-child { text-decoration: line-through; color: #94a3b8; }
+.items-editor .item-removed .item-tag { background: #f1f5f9; color: #64748b; text-decoration: none; }
+.items-add { margin-top: 8px; }
+.items-add select { max-width: 100%; }
+.procedure-pick { list-style: none; margin: 12px 0 0; padding: 0; max-height: 50vh; overflow-y: auto; display: grid; gap: 6px; }
+.procedure-pick button { width: 100%; display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; text-align: left; cursor: pointer; font: inherit; }
+.procedure-pick button:hover, .procedure-pick button:focus-visible { border-color: #0ea5e9; background: #f0f9ff; }
+.offer-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.offer-actions { display: flex; gap: 6px; }

@@ -25,8 +25,9 @@ export default function ProceduresPage({ category }) {
   const [weightRange, setWeightRange] = useState('todos');
   const [detail, setDetail] = useState(null);
   const [editing, setEditing] = useState(null); // null = fechado, {} = novo, procedimento = edição
-  const [consuming, setConsuming] = useState(null); // procedimento sendo registrado como realizado
+  const [consuming, setConsuming] = useState(null); // { procedure } sendo registrado; procedure null = escolher na lista
   const [notice, setNotice] = useState('');
+  const [justCreated, setJustCreated] = useState(null); // ficha nova: oferece registrar um atendimento
 
   const header = HEADER[category];
   const categoryProcedures = useMemo(() => procedures.filter((procedure) => procedure.category === category), [procedures, category]);
@@ -50,10 +51,33 @@ export default function ProceduresPage({ category }) {
       <SectionHeader
         title={header.title}
         description={header.description}
-        action={<button type="button" className="btn btn-primary" onClick={() => setEditing({})}>+ {header.newLabel}</button>}
+        action={(
+          <div className="header-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={categoryProcedures.length === 0}
+              onClick={() => { setNotice(''); setJustCreated(null); setConsuming({ procedure: null }); }}
+            >
+              Novo atendimento
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => setEditing({})}>+ {header.newLabel}</button>
+          </div>
+        )}
       />
 
       {notice && <p className="saved-text" role="status">✓ {notice}</p>}
+      {justCreated && (
+        <div className="notice-box offer-box" role="status">
+          <span>✓ <strong>{justCreated.name}</strong> cadastrado. Quer registrar um atendimento com ele agora?</span>
+          <span className="offer-actions">
+            <button type="button" className="btn btn-primary btn-small" onClick={() => { setConsuming({ procedure: justCreated }); setJustCreated(null); }}>
+              Registrar atendimento
+            </button>
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => setJustCreated(null)}>Agora não</button>
+          </span>
+        </div>
+      )}
 
       <div className="filters">
         <Segmented label="Filtrar por peso" options={WEIGHT_OPTIONS} value={weightRange} onChange={setWeightRange} />
@@ -73,7 +97,7 @@ export default function ProceduresPage({ category }) {
                 onOpen={() => setDetail(procedure)}
                 onEdit={() => setEditing(procedure)}
                 onDuplicate={() => duplicateProcedure(procedure)}
-                onRegister={() => { setNotice(''); setConsuming(procedure); }}
+                onRegister={() => { setNotice(''); setJustCreated(null); setConsuming({ procedure }); }}
                 onDelete={() => handleDelete(procedure)}
               />
             ))}
@@ -115,17 +139,19 @@ export default function ProceduresPage({ category }) {
 
       {consuming && (
         <ProcedureConsumeModal
-          procedure={consuming}
+          procedure={consuming.procedure}
+          procedures={categoryProcedures}
+          insumos={insumos}
           insumosMap={insumosMap}
           settings={settings}
           flushPending={flushPending}
           onClose={() => setConsuming(null)}
-          onDone={({ times, status, date }) => {
+          onDone={({ procedure, times, status, date, adjusted }) => {
             const when = date.split('-').reverse().join('/');
             const qty = times === 1 ? '' : ` (${times}x)`;
             setNotice(status === 'agendado'
-              ? `${consuming.name}${qty}: agendado para ${when}.`
-              : `${consuming.name}${qty}: atendimento de ${when} registrado e itens baixados do estoque.`);
+              ? `${procedure.name}${qty}: agendado para ${when}.`
+              : `${procedure.name}${qty}: atendimento de ${when} registrado e ${adjusted ? 'itens usados (com ajuste na ficha)' : 'itens da ficha'} baixados do estoque.`);
             setConsuming(null);
           }}
         />
@@ -140,8 +166,11 @@ export default function ProceduresPage({ category }) {
           settings={settings}
           onClose={() => setEditing(null)}
           onSave={(saved) => {
+            const isNew = !editing.id;
             saveProcedure(saved);
             setEditing(null);
+            setNotice('');
+            setJustCreated(isNew ? saved : null);
           }}
           onQuickCreateInsumo={saveInsumo}
           onQuickCreateProfessional={saveProfessional}

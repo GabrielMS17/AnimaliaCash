@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NumberInput, SectionHeader, Segmented } from '../components/ui';
-import { cancelAttendance, concludeAttendance, formatDateBR, todayISO } from '../services/attendanceService';
+import ConcludeAttendanceModal from '../components/ConcludeAttendanceModal';
+import { cancelAttendance, formatDateBR, todayISO } from '../services/attendanceService';
 import { fetchBcbMdr } from '../services/bcbTaxas';
 import {
   computeMonth,
@@ -14,7 +15,7 @@ import {
   PAYMENT_FORMS,
   resolveFees,
 } from '../services/monthlyResult';
-import { fetchLots, isStockTracked, procedureStockItems, summarizeLots } from '../services/stockService';
+import { fetchLots, isStockTracked, summarizeLots } from '../services/stockService';
 import { useData } from '../store/DataContext';
 import { formatBRL, formatDecimal } from '../utils/costCalculations';
 import { findAnomalies, forecastNext, stockoutForecast } from '../utils/forecast';
@@ -41,6 +42,7 @@ export default function Resultado() {
   const [reloadKey, setReloadKey] = useState(0);
   const [agendaBusy, setAgendaBusy] = useState(null);
   const [agendaMessage, setAgendaMessage] = useState('');
+  const [concluding, setConcluding] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -101,22 +103,9 @@ export default function Resultado() {
     .sort((a, b) => a.data_realizacao.localeCompare(b.data_realizacao)), [attendances]);
   const today = todayISO();
 
-  const handleConclude = async (row) => {
-    const procedure = procedures.find((p) => p.id === row.procedure_id);
-    if (!window.confirm(`Concluir "${row.procedure_name}" com data de hoje? Os itens da ficha serão baixados do estoque.`)) return;
-    setAgendaBusy(row.id);
+  const handleConclude = (row) => {
     setAgendaMessage('');
-    try {
-      const items = procedure ? procedureStockItems(procedure, insumosMap, row.quantidade || 1) : [];
-      await concludeAttendance({ id: row.id, date: today, items });
-      setAgendaMessage(`✓ ${row.procedure_name} concluído e estoque baixado.`);
-      setReloadKey((key) => key + 1);
-    } catch (concludeError) {
-      setAgendaMessage(concludeError.missing
-        ? 'Estoque insuficiente para concluir. Dê entrada da compra no Estoque e tente de novo.'
-        : concludeError.message);
-    }
-    setAgendaBusy(null);
+    setConcluding(row);
   };
 
   const handleCancel = async (row) => {
@@ -345,7 +334,7 @@ export default function Resultado() {
             <div className="card">
               <h2>Agenda</h2>
               <p className="muted">
-                Atendimentos marcados. Ao concluir, o atendimento entra no resultado com a data de hoje e os itens da ficha são baixados do estoque.
+                Atendimentos marcados. Ao concluir, você confere o que foi usado (dá para ajustar a ficha) e o estoque é baixado.
                 {mode === 'demo' ? ' (Na demonstração os botões ficam desativados.)' : ''}
               </p>
               {agendaMessage && <p className="saved-text" role="status">{agendaMessage}</p>}
@@ -461,6 +450,21 @@ export default function Resultado() {
             </div>
           )}
         </>
+      )}
+
+      {concluding && (
+        <ConcludeAttendanceModal
+          attendance={concluding}
+          procedure={procedures.find((p) => p.id === concluding.procedure_id)}
+          insumos={insumos}
+          insumosMap={insumosMap}
+          onClose={() => setConcluding(null)}
+          onDone={({ adjusted }) => {
+            setAgendaMessage(`✓ ${concluding.procedure_name} concluído e estoque baixado${adjusted ? ' (com ajuste na ficha)' : ''}.`);
+            setConcluding(null);
+            setReloadKey((key) => key + 1);
+          }}
+        />
       )}
     </>
   );
