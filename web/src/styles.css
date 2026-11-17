@@ -528,6 +528,14 @@ td strong { color: var(--navy); }
 /* CRMV: UF + número lado a lado */
 .crmv-row { display: grid; grid-template-columns: 96px 1fr; gap: 8px; }
 
+/* Verificação do CRMV no CFMV */
+.profile-crmv { display: flex; flex-direction: column; gap: 6px; }
+.crmv-badge { align-self: flex-start; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.crmv-badge.ok { background: #ecfdf5; color: #047857; }
+.crmv-badge.pending { background: #fef3c7; color: #b45309; }
+.crmv-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.notice-box { padding: 12px 16px; margin-bottom: 14px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; color: #0c4a6e; font-size: 14px; }
+
 @media (max-width: 760px) {
   .stock-row { flex-wrap: wrap; }
   .stock-qty { align-items: flex-start; }

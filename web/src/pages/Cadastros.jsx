@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Field, Modal, Segmented } from '../components/ui';
 import { signUpClient, supabase } from '../supabase';
-import { buildCrmv, formatCrmv, onlyCrmvDigits, UFS, validateCrmv } from '../utils/crmv';
+import { buildCrmv, CFMV_CONSULTA_URL, formatCrmv, onlyCrmvDigits, parseCrmv, UFS, validateCrmv, verificationLabel } from '../utils/crmv';
 
 // Mesma tela do app: cria a conta no Supabase Auth e o perfil na tabela profiles
 const ROLES = [
@@ -20,6 +20,7 @@ export default function Cadastros() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [statusError, setStatusError] = useState('');
+  const [crmvNotice, setCrmvNotice] = useState('');
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
@@ -99,6 +100,38 @@ export default function Cadastros() {
     }
   };
 
+  // Abre a consulta oficial do CFMV e copia o número do CRMV para colar na busca
+  const openCfmv = async (perfil) => {
+    const { uf, number } = parseCrmv(perfil.crmv);
+    const conselho = uf ? ` (conselho CRMV-${uf})` : '';
+    window.open(CFMV_CONSULTA_URL, '_blank', 'noopener');
+    try {
+      await navigator.clipboard.writeText(number);
+      setCrmvNotice(`Número ${number} copiado. Na consulta do CFMV, cole no campo de inscrição e confira se o nome bate, se o conselho é o mesmo${conselho} e se o registro está ativo.`);
+    } catch {
+      setCrmvNotice(`Na consulta do CFMV, busque pelo número ${number}${conselho} e confira se o nome bate e se o registro está ativo.`);
+    }
+  };
+
+  // Marca (ou desmarca) que um administrador conferiu o CRMV no site do CFMV
+  const setVerified = async (perfil, verified) => {
+    setStatusError('');
+    const { data: auth } = await supabase.auth.getUser();
+    const changes = verified
+      ? { crmv_verificado_em: new Date().toISOString(), crmv_verificado_por: auth.user?.id ?? null }
+      : { crmv_verificado_em: null, crmv_verificado_por: null };
+    const { error } = await supabase.from('profiles').update(changes).eq('id', perfil.id);
+    if (error) {
+      const missingColumn = error.code === '42703' || error.code === 'PGRST204';
+      setStatusError(missingColumn
+        ? 'A verificação do CRMV ainda não foi criada no banco (falta rodar supabase/atendimentos.sql).'
+        : `Erro ao salvar a verificação: ${error.message}`);
+      return;
+    }
+    setCrmvNotice('');
+    fetchProfiles();
+  };
+
   const toggleStatus = async (perfil) => {
     setStatusError('');
     const status = perfil.status === 'Inativo' ? 'Ativo' : 'Inativo';
@@ -130,6 +163,7 @@ export default function Cadastros() {
         + Adicionar Novo Colaborador
       </button>
       {statusError && <p className="error-text" role="alert">{statusError}</p>}
+      {crmvNotice && <div className="notice-box" role="status">{crmvNotice}</div>}
 
       {loading ? (
         <p className="empty-text" role="status">Carregando perfis…</p>
@@ -163,7 +197,22 @@ export default function Cadastros() {
                 <strong className="profile-name">{perfil.nome}</strong>
                 <span className="profile-email">{perfil.email || 'E-mail não registrado'}</span>
                 {perfil.role === 'Veterinário' && (
-                  <span className="profile-crmv">CRMV: <b>{formatCrmv(perfil.crmv)}</b></span>
+                  <div className="profile-crmv">
+                    <span>CRMV: <b>{formatCrmv(perfil.crmv)}</b></span>
+                    <span className={perfil.crmv_verificado_em ? 'crmv-badge ok' : 'crmv-badge pending'}>
+                      {perfil.crmv_verificado_em ? `✓ ${verificationLabel(perfil.crmv_verificado_em)}` : 'Não verificado no CFMV'}
+                    </span>
+                    {perfil.crmv && (
+                      <span className="crmv-actions">
+                        <button type="button" className="btn btn-secondary btn-small" onClick={() => openCfmv(perfil)}>Conferir no CFMV ↗</button>
+                        {perfil.crmv_verificado_em ? (
+                          <button type="button" className="btn btn-ghost btn-small" onClick={() => setVerified(perfil, false)}>Remover verificação</button>
+                        ) : (
+                          <button type="button" className="btn btn-primary btn-small" onClick={() => setVerified(perfil, true)}>Marcar como verificado</button>
+                        )}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             );
