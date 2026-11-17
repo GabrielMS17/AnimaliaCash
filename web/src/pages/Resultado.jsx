@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NumberInput, SectionHeader, Segmented } from '../components/ui';
 import ConcludeAttendanceModal from '../components/ConcludeAttendanceModal';
+import ForecastChart from '../components/ForecastChart';
 import { cancelAttendance, formatDateBR, todayISO } from '../services/attendanceService';
 import { fetchBcbMdr } from '../services/bcbTaxas';
 import {
@@ -18,7 +19,7 @@ import {
 import { fetchLots, isStockTracked, summarizeLots } from '../services/stockService';
 import { useData } from '../store/DataContext';
 import { formatBRL, formatDecimal } from '../utils/costCalculations';
-import { findAnomalies, forecastNext, stockoutForecast } from '../utils/forecast';
+import { findAnomalies, forecastAhead, stockoutForecast } from '../utils/forecast';
 
 const MODES = [
   { value: 'real', label: 'Dados reais' },
@@ -26,6 +27,13 @@ const MODES = [
 ];
 const HISTORY_MONTHS = 7; // 6 meses fechados + o mês atual
 const USAGE_WINDOW_DAYS = 30;
+const FORECAST_OFFSETS = [1, 2, 3, 4]; // mês atual (em andamento) + 3 meses à frente
+
+/** Soma meses a uma chave AAAA-MM. */
+const addMonths = (key, count) => {
+  const [y, m] = key.split('-').map(Number);
+  return monthKey(new Date(y, m - 1 + count, 1));
+};
 
 const pct = (value) => `${formatDecimal(value, 2)}%`;
 
@@ -95,7 +103,6 @@ export default function Resultado() {
       month: m, movements, attendances, fixedCosts: base.fixedCosts, fees, procedures, insumosMap, settings, mix,
     }));
   }, [base, months, nextMonth, movements, attendances, fees, procedures, insumosMap, settings, mix]);
-  const nextResult = results.find((r) => r.month === nextMonth);
 
   // Agenda: agendados de hoje em diante (e os atrasados, que ainda não foram concluídos)
   const agenda = useMemo(() => (attendances ?? [])
@@ -124,9 +131,34 @@ export default function Resultado() {
 
   const current = results.find((r) => r.month === month);
   const closedMonths = results.slice(0, months.length - 1); // o mês atual ainda está em andamento; o último é o mês que vem
-  const forecastRevenue = forecastNext(closedMonths.filter((r) => r.count > 0).map((r) => ({ month: r.month, value: r.revenue })));
-  const forecastProfit = forecastNext(closedMonths.filter((r) => r.count > 0).map((r) => ({ month: r.month, value: r.profit })), { allowNegative: true });
-  const forecastCount = forecastNext(closedMonths.filter((r) => r.count > 0).map((r) => ({ month: r.month, value: r.count })));
+  // Regressão sobre os meses fechados; projeta o mês atual (em andamento) e os 3 seguintes
+  const trainMonths = closedMonths.filter((r) => r.count > 0);
+  const lastTrained = trainMonths[trainMonths.length - 1]?.month;
+  const forecastRevenue = forecastAhead(trainMonths.map((r) => ({ month: r.month, value: r.revenue })), FORECAST_OFFSETS);
+  const forecastProfit = forecastAhead(trainMonths.map((r) => ({ month: r.month, value: r.profit })), FORECAST_OFFSETS, { allowNegative: true });
+  const forecastCount = forecastAhead(trainMonths.map((r) => ({ month: r.month, value: r.count })), FORECAST_OFFSETS);
+  const forecastRows = forecastRevenue && lastTrained
+    ? FORECAST_OFFSETS.map((offset, index) => {
+      const key = addMonths(lastTrained, offset);
+      const scheduledRows = (attendances ?? []).filter((row) => row.status === 'agendado' && row.data_realizacao.slice(0, 7) === key);
+      return {
+        month: key,
+        isCurrent: key === months[months.length - 1],
+        revenue: forecastRevenue.points[index],
+        profit: forecastProfit.points[index],
+        count: forecastCount.points[index],
+        scheduledCount: scheduledRows.reduce((total, row) => total + (row.quantidade || 1), 0),
+        scheduledRevenue: scheduledRows.reduce((total, row) => total + Number(row.valor_cobrado || 0), 0),
+        soFar: results.find((r) => r.month === key) ?? null,
+      };
+    })
+    : [];
+  const aheadRows = forecastRows.filter((row) => !row.isCurrent).slice(0, 3);
+  const aheadTotal = aheadRows.reduce((sum, row) => ({
+    revenue: sum.revenue + row.revenue.predicted,
+    profit: sum.profit + row.profit.predicted,
+    count: sum.count + row.count.predicted,
+  }), { revenue: 0, profit: 0, count: 0 });
 
   const stockouts = useMemo(() => {
     const usage = dailyUsage(movements, USAGE_WINDOW_DAYS);
@@ -295,32 +327,73 @@ export default function Resultado() {
 
           <div className="card ml-card">
             <div className="ml-head">
-              <h2>Previsão para o próximo mês</h2>
+              <h2>Projeção dos próximos 3 meses</h2>
               <span className="badge">Machine learning · regressão linear</span>
             </div>
-            {forecastRevenue ? (
+            {forecastRevenue && aheadRows.length > 0 ? (
               <>
                 <p className="muted">
-                  O modelo aprende a tendência dos meses fechados e projeta o próximo. A confiança mostra o quanto os meses seguem um padrão (r²).
+                  O modelo aprende a tendência dos {trainMonths.length} meses fechados (mínimos quadrados) e a projeta para {aheadRows.map((row) => monthLabel(row.month).split(' ')[0]).join(', ')}.
+                  A faixa sombreada é o intervalo de previsão de 95%: ela abre quanto mais longe a projeção vai. A confiança mostra o quanto os meses seguem um padrão (r²).
                 </p>
                 <div className="result-kpis">
-                  <Kpi label="Atendimentos previstos" value={formatDecimal(forecastCount?.predicted ?? 0, 0)} hint={`Confiança ${forecastCount?.confidence}`} />
-                  <Kpi label="Receita prevista" value={formatBRL(forecastRevenue.predicted)} hint={`Confiança ${forecastRevenue.confidence} (r² ${formatDecimal(forecastRevenue.r2, 2)})`} />
-                  <Kpi label="Lucro previsto" value={formatBRL(forecastProfit?.predicted ?? 0)} tone={(forecastProfit?.predicted ?? 0) >= 0 ? 'good' : 'bad'} hint={`Tendência ${trendText(forecastProfit?.trendPerMonth)}`} />
+                  <Kpi label="Atendimentos (3 meses)" value={formatDecimal(aheadTotal.count, 0)} hint={`Confiança ${forecastCount.confidence}`} />
+                  <Kpi label="Receita prevista (3 meses)" value={formatBRL(aheadTotal.revenue)} hint={`Confiança ${forecastRevenue.confidence} (r² ${formatDecimal(forecastRevenue.r2, 2)})`} />
+                  <Kpi
+                    label="Lucro previsto (3 meses)"
+                    value={formatBRL(aheadTotal.profit)}
+                    tone={aheadTotal.profit >= 0 ? 'good' : 'bad'}
+                    hint={`Tendência ${trendText(forecastProfit.trendPerMonth)}`}
+                  />
                 </div>
-                <TrendChart results={closedMonths} forecast={forecastRevenue} forecastProfit={forecastProfit} />
+                <ForecastChart history={trainMonths} rows={forecastRows} />
+                <div className="table-scroll">
+                  <table className="forecast-table">
+                    <thead>
+                      <tr>
+                        <th>Mês</th>
+                        <th className="right">Atendimentos</th>
+                        <th className="right">Receita prevista</th>
+                        <th className="right">Lucro previsto</th>
+                        <th className="right">Já na agenda</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {forecastRows.map((row) => (
+                        <tr key={row.month} className={row.isCurrent ? 'current-row' : ''}>
+                          <td>
+                            <span className="cap">{monthLabel(row.month)}</span>
+                            {row.isCurrent && <small>mês atual · realizado até hoje: {formatBRL(row.soFar?.revenue ?? 0)}</small>}
+                          </td>
+                          <td className="right">{formatDecimal(row.count.predicted, 0)}</td>
+                          <td className="right">
+                            <strong>{formatBRL(row.revenue.predicted)}</strong>
+                            <small>{formatBRL(row.revenue.low)} a {formatBRL(row.revenue.high)}</small>
+                          </td>
+                          <td className={`right ${row.profit.predicted < 0 ? 'danger-text' : ''}`}>
+                            <strong>{formatBRL(row.profit.predicted)}</strong>
+                            <small>{formatBRL(row.profit.low)} a {formatBRL(row.profit.high)}</small>
+                          </td>
+                          <td className="right">
+                            {row.scheduledCount > 0 ? (
+                              <>
+                                {formatBRL(row.scheduledRevenue)}
+                                <small>
+                                  {row.scheduledCount} agendado(s)
+                                  {row.revenue.predicted > 0 ? ` · ${formatDecimal(Math.min(100, (row.scheduledRevenue / row.revenue.predicted) * 100), 0)}% da previsão` : ''}
+                                </small>
+                              </>
+                            ) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </>
             ) : (
               <p className="empty-text">
                 A previsão precisa de pelo menos 3 meses fechados com atendimentos. Use o modo <strong>Demonstração</strong> para ver como ela funciona.
-              </p>
-            )}
-            {nextResult && nextResult.scheduled.count > 0 && (
-              <p className="scheduled-line">
-                <strong>Já agendados para {monthLabel(nextMonth)}:</strong> {nextResult.scheduled.count} atendimento(s), {formatBRL(nextResult.scheduled.revenue)} previstos
-                {forecastRevenue && forecastRevenue.predicted > 0
-                  ? ` — ${formatDecimal(Math.min(100, (nextResult.scheduled.revenue / forecastRevenue.predicted) * 100), 0)}% da receita prevista pelo modelo já está na agenda.`
-                  : '.'}
               </p>
             )}
             {current.month === months[months.length - 1] && current.scheduled.count > 0 && (
@@ -495,45 +568,3 @@ function DreRow({ label, value, strong, total }) {
   );
 }
 
-/** Gráfico simples: receita e lucro de cada mês fechado e a previsão do próximo (tracejada). */
-function TrendChart({ results, forecast, forecastProfit }) {
-  const width = 720;
-  const height = 220;
-  const pad = { left: 104, right: 24, top: 30, bottom: 34 };
-  const points = results.map((r) => ({ label: r.month.slice(5) + '/' + r.month.slice(2, 4), revenue: r.revenue, profit: r.profit }));
-  const all = [...points.map((p) => p.revenue), ...points.map((p) => p.profit), forecast.predicted, forecastProfit?.predicted ?? 0, 0];
-  const max = Math.max(...all);
-  const min = Math.min(...all);
-  const n = points.length + 1;
-  const x = (i) => pad.left + (i * (width - pad.left - pad.right)) / (n - 1);
-  const y = (v) => pad.top + ((max - v) * (height - pad.top - pad.bottom)) / (max - min || 1);
-  const line = (key) => points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i)},${y(p[key])}`).join(' ');
-  const last = points.length - 1;
-
-  return (
-    <svg className="trend-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Receita e lucro por mês, com a previsão do próximo mês">
-      <line x1={pad.left} x2={width - pad.right} y1={y(0)} y2={y(0)} className="axis" />
-      {[max, (max + min) / 2, min].map((v) => (
-        <text key={v} x={pad.left - 8} y={y(v) + 4} textAnchor="end" className="tick">{formatBRL(v).replace(',00', '')}</text>
-      ))}
-      <path d={line('revenue')} className="series revenue" />
-      <path d={line('profit')} className="series profit" />
-      <path d={`M${x(last)},${y(points[last].revenue)} L${x(n - 1)},${y(forecast.predicted)}`} className="series revenue dashed" />
-      {forecastProfit && <path d={`M${x(last)},${y(points[last].profit)} L${x(n - 1)},${y(forecastProfit.predicted)}`} className="series profit dashed" />}
-      {points.map((p, i) => (
-        <g key={p.label}>
-          <circle cx={x(i)} cy={y(p.revenue)} r="4" className="dot revenue" />
-          <circle cx={x(i)} cy={y(p.profit)} r="4" className="dot profit" />
-          <text x={x(i)} y={height - 12} textAnchor="middle" className="tick">{p.label}</text>
-        </g>
-      ))}
-      <circle cx={x(n - 1)} cy={y(forecast.predicted)} r="5" className="dot revenue hollow" />
-      {forecastProfit && <circle cx={x(n - 1)} cy={y(forecastProfit.predicted)} r="5" className="dot profit hollow" />}
-      <text x={x(n - 1)} y={height - 12} textAnchor="middle" className="tick strong">previsão</text>
-      <g className="legend" transform={`translate(${width - pad.right - 170}, 12)`}>
-        <circle cx="6" cy="0" r="5" className="dot revenue" /><text x="16" y="4">Receita</text>
-        <circle cx="86" cy="0" r="5" className="dot profit" /><text x="96" y="4">Lucro</text>
-      </g>
-    </svg>
-  );
-}

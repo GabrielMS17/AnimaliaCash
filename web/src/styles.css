@@ -548,20 +548,6 @@ td strong { color: var(--navy); }
 .ml-card { border-color: #a7f3d0; }
 .ml-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .ml-head .badge { background: #ecfdf5; color: #047857; }
-.trend-chart { width: 100%; height: auto; margin-top: 6px; }
-.trend-chart .axis { stroke: var(--border-strong); stroke-width: 1; }
-.trend-chart .tick { fill: var(--muted); font-size: 11px; }
-.trend-chart .tick.strong { fill: #047857; font-weight: 700; }
-.trend-chart .series { fill: none; stroke-width: 3; }
-.trend-chart .series.revenue { stroke: #0c2d48; }
-.trend-chart .series.profit { stroke: #00a86b; }
-.trend-chart .series.dashed { stroke-dasharray: 6 5; }
-.trend-chart .dot.revenue { fill: #0c2d48; }
-.trend-chart .dot.profit { fill: #00a86b; }
-.trend-chart .dot.hollow { fill: #ffffff; stroke-width: 3; }
-.trend-chart .dot.revenue.hollow { stroke: #0c2d48; }
-.trend-chart .dot.profit.hollow { stroke: #00a86b; }
-.trend-chart .legend text { fill: var(--text); font-size: 12px; }
 .block { display: block; }
 .bcb-hint { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 /* CRMV: UF + número lado a lado */
@@ -625,3 +611,56 @@ td strong { color: var(--navy); }
 .attendance-list .row-detail p { margin: 0 0 8px; font-size: 13px; }
 .detail-items { width: 100%; max-width: 640px; font-size: 13px; }
 .item-tag-inline { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #fef3c7; color: #b45309; }
+
+/* Gráfico de projeção (receita e lucro) */
+.forecast-chart { --c-revenue: #2a78d6; --c-profit: #1baf7a; margin: 8px 0 14px; }
+.forecast-chart .chart-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 12px; color: var(--text); margin-bottom: 6px; }
+.forecast-chart .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.forecast-chart .legend-key { color: var(--muted); }
+.forecast-chart .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.forecast-chart .swatch.revenue { background: var(--c-revenue); }
+.forecast-chart .swatch.profit { background: var(--c-profit); }
+.forecast-chart .line-solid, .forecast-chart .line-dashed { display: inline-block; width: 20px; border-top: 2px solid var(--muted); }
+.forecast-chart .line-dashed { border-top-style: dashed; }
+.forecast-chart .band-swatch { display: inline-block; width: 16px; height: 10px; border-radius: 3px; background: rgba(42, 120, 214, 0.16); }
+.forecast-chart .chart-wrap { position: relative; overflow-x: auto; }
+.forecast-chart .chart-wrap svg { min-width: 560px; }
+.forecast-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.forecast-chart .grid-line { stroke: #e7e5e4; stroke-width: 1; }
+.forecast-chart .zero-line { stroke: #a8a29e; stroke-width: 1; }
+.forecast-chart .tick { fill: var(--muted); font-size: 11px; }
+.forecast-chart .tick-forecast { fill: var(--text); font-weight: 600; }
+.forecast-chart .forecast-zone { fill: #f5f7fb; }
+.forecast-chart .divider { stroke: #a8a29e; stroke-width: 1; stroke-dasharray: 3 3; }
+.forecast-chart .zone-label { font-size: 11px; font-weight: 700; fill: var(--text); }
+.forecast-chart .zone-label.muted-label { fill: var(--muted); font-weight: 600; }
+.forecast-chart .area.revenue { fill: var(--c-revenue); opacity: 0.07; }
+.forecast-chart .band { stroke: none; }
+.forecast-chart .band.revenue { fill: var(--c-revenue); opacity: 0.14; }
+.forecast-chart .band.profit { fill: var(--c-profit); opacity: 0.16; }
+.forecast-chart .series { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.forecast-chart .series.revenue { stroke: var(--c-revenue); }
+.forecast-chart .series.profit { stroke: var(--c-profit); }
+.forecast-chart .series.dashed { stroke-dasharray: 7 5; }
+.forecast-chart .marker { stroke: #ffffff; stroke-width: 2; transition: r 0.1s; }
+.forecast-chart .marker.revenue { fill: var(--c-revenue); }
+.forecast-chart .marker.profit { fill: var(--c-profit); }
+.forecast-chart .marker.hollow { fill: #ffffff; stroke-width: 2.5; }
+.forecast-chart .marker.revenue.hollow { stroke: var(--c-revenue); }
+.forecast-chart .marker.profit.hollow { stroke: var(--c-profit); }
+.forecast-chart .end-label { font-size: 12px; font-weight: 700; fill: var(--text); }
+.forecast-chart .end-value { font-size: 12px; fill: var(--muted); }
+.forecast-chart .crosshair { stroke: #78716c; stroke-width: 1; stroke-dasharray: 2 3; pointer-events: none; }
+.forecast-chart .hit { fill: transparent; cursor: crosshair; }
+.forecast-chart .chart-tooltip { position: absolute; top: 8px; transform: translateX(14px); min-width: 210px; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12); font-size: 12px; pointer-events: none; z-index: 2; }
+.forecast-chart .chart-tooltip.left { transform: translateX(calc(-100% - 14px)); }
+.forecast-chart .chart-tooltip strong { display: block; font-size: 13px; }
+.forecast-chart .tip-kind { display: block; color: var(--muted); margin-bottom: 6px; }
+.forecast-chart .tip-row { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 2px 8px; margin-top: 4px; }
+.forecast-chart .tip-row b { text-align: right; }
+.forecast-chart .tip-row small { grid-column: 2 / 4; display: block; color: var(--muted); font-size: 11px; }
+.cap { display: inline-block; }
+.cap::first-letter { text-transform: uppercase; }
+.forecast-table td small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+.forecast-table .current-row td { background: #fafaf9; color: var(--muted); }
+.forecast-table .current-row td strong { color: var(--muted); }
