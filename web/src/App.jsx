@@ -10,6 +10,7 @@ import Estoque from './pages/Estoque';
 import Internacao from './pages/Internacao';
 import Login from './pages/Login';
 import Resultado from './pages/Resultado';
+import Atendimentos from './pages/Atendimentos';
 import Templates from './pages/Templates';
 import { useAuth } from './store/AuthContext';
 import { canAccessRoute, isKnownRole, landingRoute } from './utils/accessControl';
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/custos" element={<Custos />} />
           <Route path="/estoque" element={<Estoque />} />
           <Route path="/resultado" element={<Resultado />} />
+          <Route path="/atendimentos" element={<Atendimentos />} />
           <Route path="/templates" element={<Templates />} />
           <Route path="/banho-tosa" element={<Banho />} />
           <Route path="/cirurgia" element={<Cirurgia />} />

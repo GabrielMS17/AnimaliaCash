@@ -615,3 +615,13 @@ td strong { color: var(--navy); }
 .procedure-pick button:hover, .procedure-pick button:focus-visible { border-color: #0ea5e9; background: #f0f9ff; }
 .offer-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .offer-actions { display: flex; gap: 6px; }
+
+/* Tela de atendimentos */
+.result-kpis.compact .kpi strong { font-size: 20px; }
+.attendance-list { padding: 0; }
+.attendance-list td small { font-size: 12px; }
+.attendance-list .row-open td { background: var(--accent-soft); }
+.attendance-list .row-detail td { background: #fafafa; padding: 12px 16px; }
+.attendance-list .row-detail p { margin: 0 0 8px; font-size: 13px; }
+.detail-items { width: 100%; max-width: 640px; font-size: 13px; }
+.item-tag-inline { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #fef3c7; color: #b45309; }

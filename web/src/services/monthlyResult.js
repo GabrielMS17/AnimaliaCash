@@ -362,7 +362,7 @@ export function generateDemoData({ procedures, insumosMap, settings, months, tod
     data_realizacao: date,
     status,
     // Descontos e arredondamentos: o cobrado varia um pouco em torno do preço da ficha
-    valor_cobrado: Math.round(priceOf(procedure) * (0.9 + random() * 0.15)),
+    valor_cobrado: Math.round(priceOf(procedure) * (0.97 + random() * 0.13)),
     forma_pagamento: status === 'realizado' || random() < 0.5 ? pickForm(random) : null,
     taxa_percentual: null,
     estoque_baixado: status === 'realizado',
@@ -373,8 +373,8 @@ export function generateDemoData({ procedures, insumosMap, settings, months, tod
     const [y, m] = month.split('-').map(Number);
     const isCurrent = index === months.length - 1;
     const lastDay = isCurrent ? today.getDate() : new Date(y, m, 0).getDate();
-    // Clínica crescendo: ~+3 atendimentos por mês, com variação
-    const fullMonthCount = 16 + index * 3 + Math.round((random() - 0.5) * 6);
+    // Clínica saudável e crescendo: começa acima do ponto de equilíbrio e ganha ~4 atendimentos por mês
+    const fullMonthCount = 52 + index * 4 + Math.round((random() - 0.5) * 8);
     const count = Math.max(1, Math.round(fullMonthCount * (lastDay / new Date(y, m, 0).getDate())));
 
     for (let i = 0; i < count; i++) {
@@ -424,7 +424,7 @@ export function generateDemoData({ procedures, insumosMap, settings, months, tod
   }
   const next = new Date(today.getFullYear(), today.getMonth() + 1, 1);
   const nextDays = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 28; i++) {
     const procedure = usable[Math.floor(random() * usable.length)];
     const day = 1 + Math.floor(random() * nextDays);
     attendances.push(newAttendance(procedure, `demo-ag-${++seq}`, isoDay(next.getFullYear(), next.getMonth() + 1, day), 'agendado'));

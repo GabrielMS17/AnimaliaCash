@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { concludeAttendance, formatDateBR, todayISO } from '../services/attendanceService';
+import { appendAttendanceNote, concludeAttendance, formatDateBR, todayISO } from '../services/attendanceService';
 import { fetchLots, procedureStockItems, summarizeLots } from '../services/stockService';
 import { formatDecimal } from '../utils/costCalculations';
 import StockItemsEditor, { describeAdjustments, expectedMap, itemsToConsume } from './StockItemsEditor';
@@ -37,6 +37,10 @@ export default function ConcludeAttendanceModal({ attendance, procedure, insumos
     setError('');
     try {
       await concludeAttendance({ id: attendance.id, date, items: toConsume });
+      if (adjustments) {
+        // A baixa já foi feita; se só a anotação falhar, não desfaz nada
+        await appendAttendanceNote(attendance.id, attendance.observacao, `Ajuste na ficha: ${adjustments}`).catch(() => {});
+      }
       onDone({ adjusted: Boolean(adjustments) });
     } catch (concludeError) {
       setError(concludeError.missing

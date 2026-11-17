@@ -61,6 +61,41 @@ export async function cancelAttendance(id) {
   if (error) throw attendanceError(error);
 }
 
+/** Acrescenta um texto à observação de um atendimento (ex: ajuste feito ao concluir). */
+export async function appendAttendanceNote(id, currentNote, text) {
+  const observacao = [currentNote, text].filter(Boolean).join(' | ');
+  const { error } = await supabase.from('atendimentos').update({ observacao, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw attendanceError(error);
+}
+
+/** Itens baixados do estoque em cada atendimento: Map(atendimentoId -> [{ insumoId, quantity, cost }]). */
+export async function fetchAttendanceItems(ids) {
+  const result = new Map();
+  for (let start = 0; start < ids.length; start += 100) {
+    const chunk = ids.slice(start, start + 100);
+    const { data, error } = await supabase
+      .from('estoque_movimentos')
+      .select('atendimento_id, insumo_id, quantidade, custo_unitario')
+      .eq('tipo', 'consumo')
+      .in('atendimento_id', chunk);
+    if (error) throw new Error(`Não foi possível ler os itens usados: ${error.message}`);
+    data.forEach((row) => {
+      const list = result.get(row.atendimento_id) ?? [];
+      const quantity = Math.abs(Number(row.quantidade));
+      const existing = list.find((item) => item.insumoId === row.insumo_id);
+      // Um mesmo insumo pode sair de mais de um lote: junta numa linha
+      if (existing) {
+        existing.quantity += quantity;
+        existing.cost += quantity * Number(row.custo_unitario || 0);
+      } else {
+        list.push({ insumoId: row.insumo_id, quantity, cost: quantity * Number(row.custo_unitario || 0) });
+      }
+      result.set(row.atendimento_id, list);
+    });
+  }
+  return result;
+}
+
 /**
  * Atendimentos a partir de uma data (inclui os agendados no futuro).
  * Retorna null se a tabela ainda não existe, para as telas caírem no modo antigo.
