@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Field, Modal, Segmented } from '../components/ui';
 import { signUpClient, supabase } from '../supabase';
+import { buildCrmv, CFMV_CONSULTA_URL, formatCrmv, onlyCrmvDigits, parseCrmv, UFS, validateCrmv, verificationLabel } from '../utils/crmv';
 
 // Mesma tela do app: cria a conta no Supabase Auth e o perfil na tabela profiles
 const ROLES = [
@@ -8,7 +9,7 @@ const ROLES = [
   { value: 'Veterinário', label: 'Veterinário' },
   { value: 'Esteticista Animal', label: 'Esteticista Animal' },
 ];
-const EMPTY_FORM = { nome: '', email: '', senha: '', role: 'Veterinário', crmv: '' };
+const EMPTY_FORM = { nome: '', email: '', senha: '', role: 'Veterinário', crmvUf: '', crmv: '' };
 
 export default function Cadastros() {
   const [perfis, setPerfis] = useState([]);
@@ -19,6 +20,7 @@ export default function Cadastros() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [statusError, setStatusError] = useState('');
+  const [crmvNotice, setCrmvNotice] = useState('');
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
@@ -55,14 +57,11 @@ export default function Cadastros() {
       setFormError('A senha provisória deve conter pelo menos um caractere especial.');
       return;
     }
+    // CRMV do veterinário: UF do conselho regional + número (só dígitos), igual ao app
     if (form.role === 'Veterinário') {
-      const crmv = form.crmv.trim();
-      if (!crmv) {
-        setFormError('O CRMV é obrigatório para cadastros com o perfil de Veterinário.');
-        return;
-      }
-      if (crmv.length < 3 || crmv.length > 5) {
-        setFormError('O CRMV deve ter no mínimo 3 e no máximo 5 caracteres.');
+      const crmvError = validateCrmv(form.crmvUf, form.crmv);
+      if (crmvError) {
+        setFormError(crmvError);
         return;
       }
     }
@@ -85,7 +84,7 @@ export default function Cadastros() {
         nome: form.nome.trim(),
         email,
         role: form.role,
-        crmv: form.role === 'Veterinário' ? form.crmv.trim() : null,
+        crmv: form.role === 'Veterinário' ? buildCrmv(form.crmvUf, form.crmv) : null,
         status: 'Ativo',
       }]);
       if (profileError) throw profileError;
@@ -99,6 +98,38 @@ export default function Cadastros() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Abre a consulta oficial do CFMV e copia o número do CRMV para colar na busca
+  const openCfmv = async (perfil) => {
+    const { uf, number } = parseCrmv(perfil.crmv);
+    const conselho = uf ? ` (conselho CRMV-${uf})` : '';
+    window.open(CFMV_CONSULTA_URL, '_blank', 'noopener');
+    try {
+      await navigator.clipboard.writeText(number);
+      setCrmvNotice(`Número ${number} copiado. Na consulta do CFMV, cole no campo de inscrição e confira se o nome bate, se o conselho é o mesmo${conselho} e se o registro está ativo.`);
+    } catch {
+      setCrmvNotice(`Na consulta do CFMV, busque pelo número ${number}${conselho} e confira se o nome bate e se o registro está ativo.`);
+    }
+  };
+
+  // Marca (ou desmarca) que um administrador conferiu o CRMV no site do CFMV
+  const setVerified = async (perfil, verified) => {
+    setStatusError('');
+    const { data: auth } = await supabase.auth.getUser();
+    const changes = verified
+      ? { crmv_verificado_em: new Date().toISOString(), crmv_verificado_por: auth.user?.id ?? null }
+      : { crmv_verificado_em: null, crmv_verificado_por: null };
+    const { error } = await supabase.from('profiles').update(changes).eq('id', perfil.id);
+    if (error) {
+      const missingColumn = error.code === '42703' || error.code === 'PGRST204';
+      setStatusError(missingColumn
+        ? 'A verificação do CRMV ainda não foi criada no banco (falta rodar supabase/atendimentos.sql).'
+        : `Erro ao salvar a verificação: ${error.message}`);
+      return;
+    }
+    setCrmvNotice('');
+    fetchProfiles();
   };
 
   const toggleStatus = async (perfil) => {
@@ -132,6 +163,7 @@ export default function Cadastros() {
         + Adicionar Novo Colaborador
       </button>
       {statusError && <p className="error-text" role="alert">{statusError}</p>}
+      {crmvNotice && <div className="notice-box" role="status">{crmvNotice}</div>}
 
       {loading ? (
         <p className="empty-text" role="status">Carregando perfis…</p>
@@ -165,7 +197,22 @@ export default function Cadastros() {
                 <strong className="profile-name">{perfil.nome}</strong>
                 <span className="profile-email">{perfil.email || 'E-mail não registrado'}</span>
                 {perfil.role === 'Veterinário' && (
-                  <span className="profile-crmv">CRMV: <b>{perfil.crmv || 'Não informado'}</b></span>
+                  <div className="profile-crmv">
+                    <span>CRMV: <b>{formatCrmv(perfil.crmv)}</b></span>
+                    <span className={perfil.crmv_verificado_em ? 'crmv-badge ok' : 'crmv-badge pending'}>
+                      {perfil.crmv_verificado_em ? `✓ ${verificationLabel(perfil.crmv_verificado_em)}` : 'Não verificado no CFMV'}
+                    </span>
+                    {perfil.crmv && (
+                      <span className="crmv-actions">
+                        <button type="button" className="btn btn-secondary btn-small" onClick={() => openCfmv(perfil)}>Conferir no CFMV ↗</button>
+                        {perfil.crmv_verificado_em ? (
+                          <button type="button" className="btn btn-ghost btn-small" onClick={() => setVerified(perfil, false)}>Remover verificação</button>
+                        ) : (
+                          <button type="button" className="btn btn-primary btn-small" onClick={() => setVerified(perfil, true)}>Marcar como verificado</button>
+                        )}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -200,8 +247,22 @@ export default function Cadastros() {
               <Segmented label="Função" options={ROLES} value={form.role} onChange={(role) => setForm({ ...form, role })} />
             </div>
             {form.role === 'Veterinário' && (
-              <Field label="CRMV * (3 a 5 caracteres)">
-                <input type="text" placeholder="Ex: 12345" maxLength={5} value={form.crmv} onChange={(event) => setForm({ ...form, crmv: event.target.value })} />
+              <Field label="CRMV * (UF do conselho e número)" hint="Apenas números, até 6 dígitos. Ex: CRMV-SP nº 12345">
+                <div className="crmv-row">
+                  <select aria-label="UF do CRMV" value={form.crmvUf} onChange={(event) => setForm({ ...form, crmvUf: event.target.value })}>
+                    <option value="">UF</option>
+                    {UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                  </select>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label="Número do CRMV"
+                    placeholder="Ex: 12345"
+                    maxLength={6}
+                    value={form.crmv}
+                    onChange={(event) => setForm({ ...form, crmv: onlyCrmvDigits(event.target.value) })}
+                  />
+                </div>
               </Field>
             )}
             {formError && <p className="error-text" role="alert">{formError}</p>}

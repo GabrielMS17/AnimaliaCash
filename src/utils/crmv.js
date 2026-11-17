@@ -37,3 +37,18 @@ export function formatCrmv(value) {
   const match = String(value).match(/^([A-Z]{2})-(\d+)$/);
   return match ? `CRMV-${match[1]} nº ${match[2]}` : String(value);
 }
+
+/** Consulta pública oficial do CFMV (Siscad): busca o profissional pelo nome ou número de inscrição. */
+export const CFMV_CONSULTA_URL = 'https://siscad.cfmv.gov.br/paginas/busca';
+
+/** Separa UF e número de um CRMV salvo ("SP-12345" -> { uf: 'SP', number: '12345' }). */
+export function parseCrmv(value) {
+  const match = String(value ?? '').match(/^([A-Z]{2})-(\d+)$/);
+  return match ? { uf: match[1], number: match[2] } : { uf: null, number: String(value ?? '').replace(/\D/g, '') };
+}
+
+/** "Verificado em 16/11/2026" ou null. */
+export function verificationLabel(verifiedAt) {
+  if (!verifiedAt) return null;
+  return `Verificado no CFMV em ${new Date(verifiedAt).toLocaleDateString('pt-BR')}`;
+}
