@@ -117,10 +117,15 @@ export default function ProceduresPage({ category }) {
         <ProcedureConsumeModal
           procedure={consuming}
           insumosMap={insumosMap}
+          settings={settings}
           flushPending={flushPending}
           onClose={() => setConsuming(null)}
-          onDone={(times) => {
-            setNotice(`${consuming.name}: ${times === 1 ? 'realização registrada' : `${times} realizações registradas`} e itens baixados do estoque.`);
+          onDone={({ times, status, date }) => {
+            const when = date.split('-').reverse().join('/');
+            const qty = times === 1 ? '' : ` (${times}x)`;
+            setNotice(status === 'agendado'
+              ? `${consuming.name}${qty}: agendado para ${when}.`
+              : `${consuming.name}${qty}: atendimento de ${when} registrado e itens baixados do estoque.`);
             setConsuming(null);
           }}
         />
@@ -170,7 +175,7 @@ function ProcedureCard({ procedure, insumosMap, settings, onOpen, onEdit, onDupl
         </span>
       </button>
       <div className="procedure-actions">
-        <button type="button" className="btn btn-ghost btn-small" onClick={onRegister}>Registrar realização</button>
+        <button type="button" className="btn btn-ghost btn-small" onClick={onRegister}>Registrar atendimento</button>
         <button type="button" className="btn btn-ghost btn-small" onClick={onEdit}>Editar</button>
         <button type="button" className="btn btn-ghost btn-small" onClick={onDuplicate}>Duplicar</button>
         <button type="button" className="btn btn-ghost btn-small push-right" onClick={onDelete}>Excluir</button>

@@ -202,18 +202,21 @@ export async function consumeProcedure({ procedure, items, notes }) {
     p_procedure_name: procedure.name,
     p_observacao: notes || null,
   });
-  if (error) {
-    if (error.message === 'ESTOQUE_INSUFICIENTE') {
-      const missing = JSON.parse(error.details || '[]').map((row) => ({
-        insumoId: row.insumo_id,
-        needed: Number(row.necessario),
-        available: Number(row.disponivel),
-      }));
-      const shortage = new Error('Estoque insuficiente para registrar este procedimento.');
-      shortage.missing = missing;
-      throw shortage;
-    }
-    throw friendlyError(error);
-  }
+  if (error) throw stockRpcError(error);
   return data;
+}
+
+/** Converte o erro de uma função que baixa estoque; falta de estoque vira um erro com `missing`. */
+export function stockRpcError(error) {
+  if (error.message === 'ESTOQUE_INSUFICIENTE') {
+    const missing = JSON.parse(error.details || '[]').map((row) => ({
+      insumoId: row.insumo_id,
+      needed: Number(row.necessario),
+      available: Number(row.disponivel),
+    }));
+    const shortage = new Error('Estoque insuficiente para registrar este procedimento.');
+    shortage.missing = missing;
+    return shortage;
+  }
+  return friendlyError(error);
 }

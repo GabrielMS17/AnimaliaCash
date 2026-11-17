@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NumberInput, SectionHeader, Segmented } from '../components/ui';
+import { cancelAttendance, concludeAttendance, formatDateBR, todayISO } from '../services/attendanceService';
 import { fetchBcbMdr } from '../services/bcbTaxas';
 import {
   computeMonth,
   dailyUsage,
   DEFAULT_MIX,
-  generateDemoMovements,
+  generateDemoData,
   lastMonths,
   loadData,
+  monthKey,
   monthLabel,
   PAYMENT_FORMS,
   resolveFees,
 } from '../services/monthlyResult';
-import { fetchLots, isStockTracked, summarizeLots } from '../services/stockService';
+import { fetchLots, isStockTracked, procedureStockItems, summarizeLots } from '../services/stockService';
 import { useData } from '../store/DataContext';
 import { formatBRL, formatDecimal } from '../utils/costCalculations';
 import { findAnomalies, forecastNext, stockoutForecast } from '../utils/forecast';
@@ -36,6 +38,9 @@ export default function Resultado() {
   const [lots, setLots] = useState([]);
   const [bcb, setBcb] = useState({ state: 'loading' });
   const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+  const [agendaBusy, setAgendaBusy] = useState(null);
+  const [agendaMessage, setAgendaMessage] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -47,6 +52,13 @@ export default function Resultado() {
       },
       (loadError) => active && setError(loadError.message),
     );
+    return () => {
+      active = false;
+    };
+  }, [months, reloadKey]);
+
+  useEffect(() => {
+    let active = true;
     const controller = new AbortController();
     fetchBcbMdr({ signal: controller.signal }).then(
       (result) => active && setBcb({ state: 'ok', ...result }),
@@ -58,22 +70,71 @@ export default function Resultado() {
     };
   }, [months]);
 
-  const movements = useMemo(() => {
-    if (!base) return [];
-    return mode === 'demo' ? generateDemoMovements({ procedures, insumosMap, months }) : base.movements;
-  }, [base, mode, procedures, insumosMap, months]);
+  const source = useMemo(() => {
+    if (!base) return { movements: [], attendances: [] };
+    if (mode === 'demo') return generateDemoData({ procedures, insumosMap, settings, months });
+    return { movements: base.movements, attendances: base.attendances };
+  }, [base, mode, procedures, insumosMap, settings, months]);
+  const { movements, attendances } = source;
+  const tableMissing = mode === 'real' && base && base.attendances === null;
 
   const fees = useMemo(() => resolveFees(base?.fees ?? [], bcb.state === 'ok' ? bcb.rates : null), [base, bcb]);
+  const duplicateFees = PAYMENT_FORMS.flatMap(({ key, label }) => fees[key].duplicates.map((dup) => ({ label, ...dup })));
+  const multiBrand = PAYMENT_FORMS.filter(({ key }) => fees[key].brands > 1);
+
+  const nextMonth = useMemo(() => {
+    const [y, m] = months[months.length - 1].split('-').map(Number);
+    return monthKey(new Date(y, m, 1));
+  }, [months]);
 
   const results = useMemo(() => {
     if (!base) return [];
-    return months.map((m) => computeMonth({
-      month: m, movements, fixedCosts: base.fixedCosts, fees, procedures, insumosMap, settings, mix,
+    return [...months, nextMonth].map((m) => computeMonth({
+      month: m, movements, attendances, fixedCosts: base.fixedCosts, fees, procedures, insumosMap, settings, mix,
     }));
-  }, [base, months, movements, fees, procedures, insumosMap, settings, mix]);
+  }, [base, months, nextMonth, movements, attendances, fees, procedures, insumosMap, settings, mix]);
+  const nextResult = results.find((r) => r.month === nextMonth);
+
+  // Agenda: agendados de hoje em diante (e os atrasados, que ainda não foram concluídos)
+  const agenda = useMemo(() => (attendances ?? [])
+    .filter((row) => row.status === 'agendado')
+    .sort((a, b) => a.data_realizacao.localeCompare(b.data_realizacao)), [attendances]);
+  const today = todayISO();
+
+  const handleConclude = async (row) => {
+    const procedure = procedures.find((p) => p.id === row.procedure_id);
+    if (!window.confirm(`Concluir "${row.procedure_name}" com data de hoje? Os itens da ficha serão baixados do estoque.`)) return;
+    setAgendaBusy(row.id);
+    setAgendaMessage('');
+    try {
+      const items = procedure ? procedureStockItems(procedure, insumosMap, row.quantidade || 1) : [];
+      await concludeAttendance({ id: row.id, date: today, items });
+      setAgendaMessage(`✓ ${row.procedure_name} concluído e estoque baixado.`);
+      setReloadKey((key) => key + 1);
+    } catch (concludeError) {
+      setAgendaMessage(concludeError.missing
+        ? 'Estoque insuficiente para concluir. Dê entrada da compra no Estoque e tente de novo.'
+        : concludeError.message);
+    }
+    setAgendaBusy(null);
+  };
+
+  const handleCancel = async (row) => {
+    if (!window.confirm(`Cancelar o agendamento de "${row.procedure_name}" em ${formatDateBR(row.data_realizacao)}?`)) return;
+    setAgendaBusy(row.id);
+    setAgendaMessage('');
+    try {
+      await cancelAttendance(row.id);
+      setAgendaMessage(`Agendamento de ${row.procedure_name} cancelado.`);
+      setReloadKey((key) => key + 1);
+    } catch (cancelError) {
+      setAgendaMessage(cancelError.message);
+    }
+    setAgendaBusy(null);
+  };
 
   const current = results.find((r) => r.month === month);
-  const closedMonths = results.slice(0, -1); // o mês atual ainda está em andamento
+  const closedMonths = results.slice(0, months.length - 1); // o mês atual ainda está em andamento; o último é o mês que vem
   const forecastRevenue = forecastNext(closedMonths.filter((r) => r.count > 0).map((r) => ({ month: r.month, value: r.revenue })));
   const forecastProfit = forecastNext(closedMonths.filter((r) => r.count > 0).map((r) => ({ month: r.month, value: r.profit })), { allowNegative: true });
   const forecastCount = forecastNext(closedMonths.filter((r) => r.count > 0).map((r) => ({ month: r.month, value: r.count })));
@@ -94,7 +155,7 @@ export default function Resultado() {
   }, [movements, lots, insumos]);
 
   const anomalies = useMemo(() => findAnomalies(
-    results.flatMap((r) => r.attendances).map((att) => ({
+    results.flatMap((r) => r.attendances).filter((att) => att.stockTracked && att.realStockCost > 0).map((att) => ({
       id: att.id, name: att.procedureName, date: att.date, expected: att.expectedStockCost, real: att.realStockCost,
     })),
   ).slice(0, 6), [results]);
@@ -113,10 +174,18 @@ export default function Resultado() {
         </select>
       </div>
 
-      {mode === 'demo' ? (
-        <div className="notice-box">Modo demonstração: 6 meses de atendimentos <strong>simulados só nesta tela</strong>, com as fichas e preços reais da clínica. Nada é gravado no banco.</div>
-      ) : (
-        <div className="notice-box">A <strong>receita é estimada</strong> pelo preço de cada procedimento, porque o valor cobrado ainda não é registrado no atendimento. Custos de insumos e perdas são reais, vindos do estoque.</div>
+      {mode === 'demo' && (
+        <div className="notice-box">Modo demonstração: 6 meses de atendimentos <strong>simulados só nesta tela</strong> (com valor cobrado, forma de pagamento e agenda), usando as fichas e preços reais da clínica. Nada é gravado no banco.</div>
+      )}
+      {tableMissing && (
+        <div className="notice-box">A tabela de atendimentos ainda não existe no banco (falta rodar <code>supabase/atendimentos.sql</code>). Por enquanto a receita é <strong>estimada</strong> pelo preço da ficha e cada baixa de estoque conta como um atendimento.</div>
+      )}
+      {mode === 'real' && !tableMissing && current && (current.legacyCount > 0 || current.estimatedRevenueCount > 0) && (
+        <div className="notice-box">
+          Neste mês, {current.estimatedRevenueCount} atendimento(s) estão com a <strong>receita estimada</strong> pelo preço da ficha
+          {current.legacyCount > 0 ? ` (${current.legacyCount} são baixas de estoque antigas, de antes do registro com data e valor)` : ' (valor cobrado não informado)'}.
+          Os demais usam o valor cobrado e a forma de pagamento registrados.
+        </div>
       )}
       {error && <div className="error-banner" role="alert">{error}</div>}
       {!base && !error && <p className="empty-text">Carregando os dados do mês…</p>}
@@ -140,8 +209,16 @@ export default function Resultado() {
               <h2>Demonstrativo de {monthLabel(month)}</h2>
               <table className="dre">
                 <tbody>
-                  <DreRow label="Receita (estimada pelo preço dos procedimentos)" value={current.revenue} strong />
-                  <DreRow label={`− Taxas de pagamento (${pct(current.feePercent)} em média)`} value={-current.fees} />
+                  <DreRow
+                    label={current.estimatedRevenueCount === 0
+                      ? 'Receita (valor cobrado nos atendimentos)'
+                      : current.estimatedRevenueCount === current.attendances.length
+                        ? 'Receita (estimada pelo preço dos procedimentos)'
+                        : 'Receita (valor cobrado + estimativas)'}
+                    value={current.revenue}
+                    strong
+                  />
+                  <DreRow label={`− Taxas de pagamento (${pct(current.feePercent)} da receita)`} value={-current.fees} />
                   <DreRow label="− Insumos consumidos (custo real dos lotes)" value={-current.supplies} />
                   <DreRow label="− Profissionais terceirizados" value={-current.external} />
                   <DreRow label="− Comissões" value={-current.commission} />
@@ -162,31 +239,65 @@ export default function Resultado() {
             <div className="card">
               <h2>Formas de pagamento e taxas</h2>
               <p className="muted">
-                Como os clientes pagam (estimativa) e a taxa de cada forma. Sem taxa cadastrada, usamos a média nacional do Banco Central
-                {bcb.state === 'ok' ? ` (${bcb.label})` : ''}.
+                Cada atendimento usa a taxa da forma em que foi pago: a <strong>cadastrada pela clínica</strong> em Custos e Taxas e, se não houver,
+                a média nacional do Banco Central{bcb.state === 'ok' ? ` (${bcb.label})` : ''}. O mix estimado só vale para atendimentos sem forma informada.
               </p>
-              <table className="fees-table">
-                <thead>
-                  <tr><th>Forma</th><th className="right">% dos pagamentos</th><th className="right">Taxa da clínica</th><th className="right">Média nacional</th></tr>
-                </thead>
-                <tbody>
-                  {PAYMENT_FORMS.map(({ key, label }) => {
-                    const fee = fees[key];
-                    const above = fee.clinic != null && fee.bcb != null && fee.clinic > fee.bcb;
-                    return (
-                      <tr key={key}>
-                        <td>{label}</td>
-                        <td className="right">
-                          <NumberInput min={0} max={100} suffix="%" label={`Percentual ${label}`} value={mix[key]} onChange={(value) => setMix({ ...mix, [key]: value })} className="w-tiny" />
-                        </td>
-                        <td className={`right ${above ? 'danger-text' : ''}`}>{fee.clinic != null ? pct(fee.clinic) : '—'}</td>
-                        <td className="right">{fee.bcb != null ? pct(fee.bcb) : key === 'pix' ? 'não publicada' : '…'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="table-scroll">
+                <table className="fees-table">
+                  <thead>
+                    <tr>
+                      <th>Forma</th>
+                      <th className="right">Pago no mês</th>
+                      <th className="right">Mix estimado</th>
+                      <th className="right">Taxa da clínica</th>
+                      <th className="right">Média nacional</th>
+                      <th>Usada no cálculo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PAYMENT_FORMS.map(({ key, label }) => {
+                      const fee = fees[key];
+                      const above = fee.clinic != null && fee.bcb != null && fee.clinic > fee.bcb;
+                      return (
+                        <tr key={key}>
+                          <td>{label}</td>
+                          <td className="right">{current.realMix ? pct(current.realMix[key]) : '—'}</td>
+                          <td className="right">
+                            <NumberInput min={0} max={100} suffix="%" label={`Percentual ${label}`} value={mix[key]} onChange={(value) => setMix({ ...mix, [key]: value })} className="w-tiny" />
+                          </td>
+                          <td className={`right ${above ? 'danger-text' : ''}`}>
+                            {fee.clinic != null ? pct(fee.clinic) : '—'}
+                            {fee.rowCount > 1 && <small className="block muted">média de {fee.rowCount}</small>}
+                          </td>
+                          <td className="right">{fee.bcb != null ? pct(fee.bcb) : key === 'pix' ? 'não publicada' : '…'}</td>
+                          <td>
+                            {fee.source === 'sem taxa' ? (
+                              <span className="fee-source none">sem taxa (0%)</span>
+                            ) : (
+                              <span className={`fee-source ${fee.source === 'clínica' ? 'clinic' : 'bcb'}`}>
+                                {pct(fee.used)} · {fee.source === 'clínica' ? 'clínica' : 'Banco Central'}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
               {bcb.state === 'error' && <p className="error-text">Não foi possível consultar o Banco Central: {bcb.message}</p>}
+              {duplicateFees.length > 0 && (
+                <p className="warning">
+                  Taxas repetidas em Custos e Taxas:{' '}
+                  {duplicateFees.map((dup) => `${dup.label} / ${dup.brand} (${dup.values.map((v) => pct(v)).join(' e ')})`).join('; ')}.
+                  Usamos a média, mas o certo é deixar só uma por bandeira.
+                </p>
+              )}
+              {duplicateFees.length === 0 && multiBrand.length > 0 && (
+                <p className="muted">
+                  {multiBrand.map(({ label }) => label).join(', ')}: há taxas de bandeiras diferentes; usamos a média entre elas.
+                </p>
+              )}
               {PAYMENT_FORMS.some(({ key }) => fees[key].clinic != null && fees[key].bcb != null && fees[key].clinic > fees[key].bcb) && (
                 <p className="warning">Em vermelho: taxas da clínica acima da média nacional. Vale renegociar com a maquininha.</p>
               )}
@@ -215,7 +326,71 @@ export default function Resultado() {
                 A previsão precisa de pelo menos 3 meses fechados com atendimentos. Use o modo <strong>Demonstração</strong> para ver como ela funciona.
               </p>
             )}
+            {nextResult && nextResult.scheduled.count > 0 && (
+              <p className="scheduled-line">
+                <strong>Já agendados para {monthLabel(nextMonth)}:</strong> {nextResult.scheduled.count} atendimento(s), {formatBRL(nextResult.scheduled.revenue)} previstos
+                {forecastRevenue && forecastRevenue.predicted > 0
+                  ? ` — ${formatDecimal(Math.min(100, (nextResult.scheduled.revenue / forecastRevenue.predicted) * 100), 0)}% da receita prevista pelo modelo já está na agenda.`
+                  : '.'}
+              </p>
+            )}
+            {current.month === months[months.length - 1] && current.scheduled.count > 0 && (
+              <p className="scheduled-line">
+                <strong>Ainda neste mês:</strong> {current.scheduled.count} agendado(s), {formatBRL(current.scheduled.revenue)} — entram no resultado quando forem concluídos.
+              </p>
+            )}
           </div>
+
+          {attendances && (
+            <div className="card">
+              <h2>Agenda</h2>
+              <p className="muted">
+                Atendimentos marcados. Ao concluir, o atendimento entra no resultado com a data de hoje e os itens da ficha são baixados do estoque.
+                {mode === 'demo' ? ' (Na demonstração os botões ficam desativados.)' : ''}
+              </p>
+              {agendaMessage && <p className="saved-text" role="status">{agendaMessage}</p>}
+              {agenda.length === 0 ? (
+                <p className="empty-text">Nenhum atendimento agendado. Agende pelo botão “Registrar atendimento” nas telas de procedimentos.</p>
+              ) : (
+                <div className="table-scroll">
+                  <table>
+                    <thead><tr><th>Data</th><th>Procedimento</th><th>Paciente</th><th className="right">Valor</th><th /></tr></thead>
+                    <tbody>
+                      {agenda.slice(0, 15).map((row) => {
+                        const late = row.data_realizacao < today;
+                        return (
+                          <tr key={row.id}>
+                            <td className={late ? 'danger-text' : ''}>
+                              {formatDateBR(row.data_realizacao)}
+                              {late && <small className="block">atrasado</small>}
+                            </td>
+                            <td>{row.procedure_name}{row.quantidade > 1 ? ` (${row.quantidade}x)` : ''}</td>
+                            <td>{row.paciente || '—'}</td>
+                            <td className="right">{row.valor_cobrado != null ? formatBRL(Number(row.valor_cobrado)) : '—'}</td>
+                            <td className="right nowrap">
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-small"
+                                disabled={mode === 'demo' || agendaBusy != null || row.data_realizacao > today}
+                                title={row.data_realizacao > today ? 'Só dá para concluir no dia ou depois' : undefined}
+                                onClick={() => handleConclude(row)}
+                              >
+                                Concluir
+                              </button>
+                              <button type="button" className="btn btn-ghost btn-small" disabled={mode === 'demo' || agendaBusy != null} onClick={() => handleCancel(row)}>
+                                Cancelar
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {agenda.length > 15 && <p className="muted">E mais {agenda.length - 15} agendado(s).</p>}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="result-grid">
             <div className="card">

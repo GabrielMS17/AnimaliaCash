@@ -590,3 +590,10 @@ td strong { color: var(--navy); }
   .backdrop { padding: 8px; }
   .modal-body { padding: 16px; }
 }
+
+/* Resultado: origem da taxa e agenda */
+.fee-source { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.fee-source.clinic { background: #ecfdf5; color: #047857; }
+.fee-source.bcb { background: #eff6ff; color: #1d4ed8; }
+.fee-source.none { background: #f1f5f9; color: #64748b; }
+.scheduled-line { margin: 12px 0 0; padding: 10px 14px; background: #f8fafc; border-left: 3px solid #0ea5e9; border-radius: 6px; font-size: 14px; }
