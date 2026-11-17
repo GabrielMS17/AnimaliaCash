@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,16 @@ import {
 } from 'react-native';
 import { Select } from '../../components/ui';
 import { supabase } from '../../supabase';
-import { buildCrmv, formatCrmv, onlyCrmvDigits, UFS, validateCrmv } from '../../utils/crmv';
+import {
+  buildCrmv,
+  CFMV_CONSULTA_URL,
+  formatCrmv,
+  onlyCrmvDigits,
+  parseCrmv,
+  UFS,
+  validateCrmv,
+  verificationLabel,
+} from '../../utils/crmv';
 
 export default function CadastrosScreen() {
   const [perfis, setPerfis] = useState([]);
@@ -158,6 +168,34 @@ export default function CadastrosScreen() {
     }
   };
 
+  // Abre a consulta oficial do CFMV para conferir se o registro existe e está ativo
+  const handleOpenCfmv = (perfil) => {
+    const { uf, number } = parseCrmv(perfil.crmv);
+    const conselho = uf ? ` (conselho CRMV-${uf})` : '';
+    showAlert(`Na consulta do CFMV, busque pelo número ${number}${conselho} e confira se o nome bate e se o registro está ativo. Depois volte e toque em "Marcar como verificado".`);
+    Linking.openURL(CFMV_CONSULTA_URL).catch(() => {
+      showAlert(`Não foi possível abrir o navegador. Acesse ${CFMV_CONSULTA_URL} e busque pelo número ${number}.`);
+    });
+  };
+
+  // Marca (ou desmarca) que um administrador conferiu o CRMV no site do CFMV
+  const handleSetVerified = async (perfil, verified) => {
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const changes = verified
+        ? { crmv_verificado_em: new Date().toISOString(), crmv_verificado_por: auth.user?.id ?? null }
+        : { crmv_verificado_em: null, crmv_verificado_por: null };
+      const { error } = await supabase.from('profiles').update(changes).eq('id', perfil.id);
+      if (error) throw error;
+      fetchProfiles();
+    } catch (error) {
+      const missingColumn = error.code === '42703' || error.code === 'PGRST204';
+      showAlert(missingColumn
+        ? 'A verificação do CRMV ainda não foi criada no banco (falta rodar supabase/atendimentos.sql).'
+        : `Erro ao salvar a verificação: ${error.message}`);
+    }
+  };
+
   // Função para alternar o status entre Ativo e Inativo
   const handleToggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Inativo' ? 'Ativo' : 'Inativo';
@@ -254,9 +292,29 @@ export default function CadastrosScreen() {
 
                     {/* Exibe o CRMV se for Veterinário */}
                     {p.role === 'Veterinário' && (
-                      <View style={styles.cardFooterRow}>
-                        <Text style={styles.crmvLabel}>CRMV:</Text>
-                        <Text style={styles.crmvValue}>{formatCrmv(p.crmv)}</Text>
+                      <View style={styles.crmvBlock}>
+                        <View style={styles.cardFooterRow}>
+                          <Text style={styles.crmvLabel}>CRMV:</Text>
+                          <Text style={styles.crmvValue}>{formatCrmv(p.crmv)}</Text>
+                        </View>
+                        <Text style={[styles.crmvBadge, p.crmv_verificado_em ? styles.crmvBadgeOk : styles.crmvBadgePending]}>
+                          {p.crmv_verificado_em ? `✓ ${verificationLabel(p.crmv_verificado_em)}` : 'Não verificado no CFMV'}
+                        </Text>
+                        {p.crmv ? (
+                          <View style={styles.crmvActions}>
+                            <TouchableOpacity style={styles.crmvButton} onPress={() => handleOpenCfmv(p)}>
+                              <Text style={styles.crmvButtonText}>Conferir no CFMV ↗</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.crmvButton, !p.crmv_verificado_em && styles.crmvButtonPrimary]}
+                              onPress={() => handleSetVerified(p, !p.crmv_verificado_em)}
+                            >
+                              <Text style={[styles.crmvButtonText, !p.crmv_verificado_em && styles.crmvButtonPrimaryText]}>
+                                {p.crmv_verificado_em ? 'Remover verificação' : 'Marcar como verificado'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : null}
                       </View>
                     )}
 
@@ -592,6 +650,15 @@ const styles = StyleSheet.create({
   },
   crmvLabel: { fontSize: 12, color: '#64748B', fontWeight: '600', marginRight: 6 },
   crmvValue: { fontSize: 12, color: PRIMARY_DARK, fontWeight: '700', flexShrink: 1 },
+  crmvBlock: { gap: 6 },
+  crmvBadge: { alignSelf: 'flex-start', fontSize: 11, fontWeight: '700', paddingVertical: 2, paddingHorizontal: 8, borderRadius: 999, overflow: 'hidden' },
+  crmvBadgeOk: { backgroundColor: '#ECFDF5', color: '#047857' },
+  crmvBadgePending: { backgroundColor: '#FEF3C7', color: '#B45309' },
+  crmvActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  crmvButton: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#FFFFFF' },
+  crmvButtonText: { fontSize: 12, fontWeight: '700', color: '#334155' },
+  crmvButtonPrimary: { backgroundColor: ACCENT_GREEN, borderColor: ACCENT_GREEN },
+  crmvButtonPrimaryText: { color: '#FFFFFF' },
 
   emptyCard: {
     backgroundColor: '#FFFFFF',
