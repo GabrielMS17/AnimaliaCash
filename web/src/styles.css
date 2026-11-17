@@ -525,6 +525,9 @@ td strong { color: var(--navy); }
   table.stack-mobile td.empty-text { justify-content: center; }
 }
 
+/* CRMV: UF + número lado a lado */
+.crmv-row { display: grid; grid-template-columns: 96px 1fr; gap: 8px; }
+
 @media (max-width: 760px) {
   .stock-row { flex-wrap: wrap; }
   .stock-qty { align-items: flex-start; }

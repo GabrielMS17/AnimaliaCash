@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Field, Modal, Segmented } from '../components/ui';
 import { signUpClient, supabase } from '../supabase';
+import { buildCrmv, formatCrmv, onlyCrmvDigits, UFS, validateCrmv } from '../utils/crmv';
 
 // Mesma tela do app: cria a conta no Supabase Auth e o perfil na tabela profiles
 const ROLES = [
@@ -8,7 +9,7 @@ const ROLES = [
   { value: 'Veterinário', label: 'Veterinário' },
   { value: 'Esteticista Animal', label: 'Esteticista Animal' },
 ];
-const EMPTY_FORM = { nome: '', email: '', senha: '', role: 'Veterinário', crmv: '' };
+const EMPTY_FORM = { nome: '', email: '', senha: '', role: 'Veterinário', crmvUf: '', crmv: '' };
 
 export default function Cadastros() {
   const [perfis, setPerfis] = useState([]);
@@ -55,14 +56,11 @@ export default function Cadastros() {
       setFormError('A senha provisória deve conter pelo menos um caractere especial.');
       return;
     }
+    // CRMV do veterinário: UF do conselho regional + número (só dígitos), igual ao app
     if (form.role === 'Veterinário') {
-      const crmv = form.crmv.trim();
-      if (!crmv) {
-        setFormError('O CRMV é obrigatório para cadastros com o perfil de Veterinário.');
-        return;
-      }
-      if (crmv.length < 3 || crmv.length > 5) {
-        setFormError('O CRMV deve ter no mínimo 3 e no máximo 5 caracteres.');
+      const crmvError = validateCrmv(form.crmvUf, form.crmv);
+      if (crmvError) {
+        setFormError(crmvError);
         return;
       }
     }
@@ -85,7 +83,7 @@ export default function Cadastros() {
         nome: form.nome.trim(),
         email,
         role: form.role,
-        crmv: form.role === 'Veterinário' ? form.crmv.trim() : null,
+        crmv: form.role === 'Veterinário' ? buildCrmv(form.crmvUf, form.crmv) : null,
         status: 'Ativo',
       }]);
       if (profileError) throw profileError;
@@ -165,7 +163,7 @@ export default function Cadastros() {
                 <strong className="profile-name">{perfil.nome}</strong>
                 <span className="profile-email">{perfil.email || 'E-mail não registrado'}</span>
                 {perfil.role === 'Veterinário' && (
-                  <span className="profile-crmv">CRMV: <b>{perfil.crmv || 'Não informado'}</b></span>
+                  <span className="profile-crmv">CRMV: <b>{formatCrmv(perfil.crmv)}</b></span>
                 )}
               </div>
             );
@@ -200,8 +198,22 @@ export default function Cadastros() {
               <Segmented label="Função" options={ROLES} value={form.role} onChange={(role) => setForm({ ...form, role })} />
             </div>
             {form.role === 'Veterinário' && (
-              <Field label="CRMV * (3 a 5 caracteres)">
-                <input type="text" placeholder="Ex: 12345" maxLength={5} value={form.crmv} onChange={(event) => setForm({ ...form, crmv: event.target.value })} />
+              <Field label="CRMV * (UF do conselho e número)" hint="Apenas números, até 6 dígitos. Ex: CRMV-SP nº 12345">
+                <div className="crmv-row">
+                  <select aria-label="UF do CRMV" value={form.crmvUf} onChange={(event) => setForm({ ...form, crmvUf: event.target.value })}>
+                    <option value="">UF</option>
+                    {UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                  </select>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label="Número do CRMV"
+                    placeholder="Ex: 12345"
+                    maxLength={6}
+                    value={form.crmv}
+                    onChange={(event) => setForm({ ...form, crmv: onlyCrmvDigits(event.target.value) })}
+                  />
+                </div>
               </Field>
             )}
             {formError && <p className="error-text" role="alert">{formError}</p>}
