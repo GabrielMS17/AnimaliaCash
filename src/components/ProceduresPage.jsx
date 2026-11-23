@@ -5,6 +5,7 @@ import { calculateProcedure, formatBRL, formatDuration, matchesWeightRange, WEIG
 import ProcedureConsumeModal from './ProcedureConsumeModal';
 import ProcedureDetailModal from './ProcedureDetailModal';
 import ProcedureEditModal from './ProcedureEditModal';
+import { formatDateBR } from '../services/stockService';
 import { Button, COLORS, confirmAction, Input, notify, SECTIONS, SectionHeader, Segmented, useAccent, useIsWide } from './ui';
 
 const CATEGORY_HEADER = {
@@ -29,7 +30,8 @@ export default function ProceduresPage({ category }) {
   const [weightRange, setWeightRange] = useState('todos');
   const [detailProcedure, setDetailProcedure] = useState(null);
   const [editing, setEditing] = useState(null); // null = fechado, {} = novo, procedimento = edição
-  const [consuming, setConsuming] = useState(null); // procedimento sendo registrado como realizado
+  const [consuming, setConsuming] = useState(null); // { procedure } sendo registrado; procedure null = escolher na lista
+  const [justCreated, setJustCreated] = useState(null); // ficha nova: oferece registrar um atendimento
 
   const header = CATEGORY_HEADER[category];
   const categoryProcedures = useMemo(() => procedures.filter((procedure) => procedure.category === category), [procedures, category]);
@@ -56,8 +58,30 @@ export default function ProceduresPage({ category }) {
       <SectionHeader
         title={SECTIONS[category].label}
         description={header.description}
-        action={<Button label={`+ ${header.newLabel}`} onPress={() => setEditing({})} />}
+        action={(
+          <View style={styles.headerActions}>
+            <Button
+              variant="secondary"
+              label="Novo atendimento"
+              disabled={categoryProcedures.length === 0}
+              onPress={() => { setJustCreated(null); setConsuming({ procedure: null }); }}
+            />
+            <Button label={`+ ${header.newLabel}`} onPress={() => setEditing({})} />
+          </View>
+        )}
       />
+
+      {justCreated && (
+        <View style={styles.offer}>
+          <Text style={styles.offerText}>
+            ✓ <Text style={{ fontWeight: '700' }}>{justCreated.name}</Text> cadastrado. Quer registrar um atendimento com ele agora?
+          </Text>
+          <View style={styles.headerActions}>
+            <Button small label="Registrar atendimento" onPress={() => { setConsuming({ procedure: justCreated }); setJustCreated(null); }} />
+            <Button small variant="ghost" label="Agora não" onPress={() => setJustCreated(null)} />
+          </View>
+        </View>
+      )}
 
       <View style={[styles.filters, isWide && styles.filtersWide]}>
         <View style={{ flexShrink: 1 }}>
@@ -79,7 +103,7 @@ export default function ProceduresPage({ category }) {
                   onOpen={() => setDetailProcedure(procedure)}
                   onEdit={() => setEditing(procedure)}
                   onDuplicate={() => duplicateProcedure(procedure)}
-                  onRegister={() => setConsuming(procedure)}
+                  onRegister={() => { setJustCreated(null); setConsuming({ procedure }); }}
                   onDelete={() => handleDelete(procedure)}
                 />
               </View>
@@ -122,14 +146,23 @@ export default function ProceduresPage({ category }) {
 
       {consuming && (
         <ProcedureConsumeModal
-          procedure={consuming}
+          procedure={consuming.procedure}
+          procedures={categoryProcedures}
+          insumos={insumos}
           insumosMap={insumosMap}
+          settings={settings}
           flushPending={flushPending}
           onClose={() => setConsuming(null)}
-          onDone={(times) => {
-            const name = consuming.name;
+          onDone={({ procedure, times, status, date, adjusted }) => {
             setConsuming(null);
-            notify('Estoque atualizado', `${name}: ${times === 1 ? 'realização registrada' : `${times} realizações registradas`} e itens baixados do estoque.`);
+            const when = formatDateBR(date);
+            const qty = times === 1 ? '' : ` (${times}x)`;
+            notify(
+              status === 'agendado' ? 'Atendimento agendado' : 'Atendimento registrado',
+              status === 'agendado'
+                ? `${procedure.name}${qty}: agendado para ${when}.`
+                : `${procedure.name}${qty}: atendimento de ${when} registrado e ${adjusted ? 'itens usados (com ajuste na ficha)' : 'itens da ficha'} baixados do estoque.`,
+            );
           }}
         />
       )}
@@ -143,8 +176,10 @@ export default function ProceduresPage({ category }) {
           settings={settings}
           onClose={() => setEditing(null)}
           onSave={(saved) => {
+            const isNew = !editing.id;
             saveProcedure(saved);
             setEditing(null);
+            setJustCreated(isNew ? saved : null);
           }}
           onQuickCreateInsumo={saveInsumo}
           onQuickCreateProfessional={saveProfessional}
@@ -179,7 +214,7 @@ function ProcedureCard({ procedure, insumosMap, settings, onOpen, onEdit, onDupl
         </View>
       </Pressable>
       <View style={styles.cardActions}>
-        <Button small variant="ghost" label="Registrar realização" onPress={onRegister} />
+        <Button small variant="ghost" label="Registrar atendimento" onPress={onRegister} />
         <Button small variant="ghost" label="Editar" onPress={onEdit} />
         <Button small variant="ghost" label="Duplicar" onPress={onDuplicate} />
         <Button small variant="ghost" label="Excluir" onPress={onDelete} style={{ marginLeft: 'auto' }} />
@@ -189,6 +224,21 @@ function ProcedureCard({ procedure, insumosMap, settings, onOpen, onEdit, onDupl
 }
 
 const styles = StyleSheet.create({
+  headerActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  offer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 10,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  offerText: { fontSize: 14, color: '#0C4A6E', flexShrink: 1 },
   filters: { gap: 10, marginBottom: 12 },
   filtersWide: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   count: { fontSize: 13, color: COLORS.muted, marginBottom: 6 },

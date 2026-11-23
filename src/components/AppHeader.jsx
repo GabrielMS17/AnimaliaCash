@@ -9,10 +9,12 @@ const NAV_ORDER = [
   'cadastros',
   'custos',
   'estoque',
+  'resultado',
   'templates',
   'banho_tosa',
   'cirurgia',
   'internacao',
+  'atendimentos',
 ];
 
 /** Cabeçalho institucional e navegação dos módulos permitidos para o perfil atual. */

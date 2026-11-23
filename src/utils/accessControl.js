@@ -2,20 +2,23 @@ export const VETERINARIAN_ROLE = 'Veterinário';
 export const ANIMAL_GROOMER_ROLE = 'Esteticista Animal';
 
 export const VETERINARIAN_ALLOWED_ROUTES = [
+  '/atendimentos',
   '/cirurgia',
   '/configuracoes',
   '/internacao',
 ];
 
 export const ADMINISTRATOR_ALLOWED_ROUTES = [
+  '/atendimentos',
   '/cadastros',
   '/configuracoes',
   '/custos',
   '/estoque',
+  '/resultado',
   '/templates',
 ];
 
-export const ANIMAL_GROOMER_ALLOWED_ROUTES = ['/banho-tosa'];
+export const ANIMAL_GROOMER_ALLOWED_ROUTES = ['/atendimentos', '/banho-tosa'];
 
 export function isKnownRole(role) {
   return role === 'Administrador' || role === VETERINARIAN_ROLE || role === ANIMAL_GROOMER_ROLE;

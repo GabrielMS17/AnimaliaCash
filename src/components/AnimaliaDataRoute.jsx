@@ -2,6 +2,8 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
 import ProceduresPage from './ProceduresPage';
 import StockPage from './StockPage';
+import ResultPage from './ResultPage';
+import AttendancesPage from './AttendancesPage';
 import SettingsPage from './SettingsPage';
 import { AccentProvider, SECTIONS } from './ui';
 import AppHeader from './AppHeader';
@@ -26,6 +28,8 @@ export default function AnimaliaDataRoute({ section }) {
               {!loaded && <ActivityIndicator size="large" color={current.accent} style={{ marginTop: 40 }} />}
               {loaded && section === 'estoque' && <StockPage />}
               {loaded && section === 'configuracoes' && <SettingsPage />}
+              {loaded && section === 'resultado' && <ResultPage />}
+              {loaded && section === 'atendimentos' && <AttendancesPage />}
               {loaded && ['cirurgia', 'internacao', 'banho_tosa'].includes(section) && <ProceduresPage category={section} />}
             </View>
 

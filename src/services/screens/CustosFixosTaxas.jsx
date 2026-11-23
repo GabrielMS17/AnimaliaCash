@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import AppHeader from '../../components/AppHeader';
 import { NumberInput } from '../../components/ui';
+import { BCB_KEY_BY_FORMA, fetchBcbMdr } from '../bcbTaxas';
 import { useAnimaliaData } from '../../store/AnimaliaDataContext';
 import { supabase } from '../../supabase';
 import { calculateProcedure } from '../../utils/costCalculations';
@@ -56,6 +57,18 @@ export default function CustosETaxasScreen() {
   useEffect(() => {
     setWasteRateInput(settings.averageProductWastePercent ?? 0);
   }, [settings.averageProductWastePercent]);
+
+  // Taxas médias do Banco Central (API de dados abertos), para comparar e preencher as taxas
+  const [bcb, setBcb] = useState({ state: 'loading' });
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchBcbMdr({ signal: controller.signal }).then(
+      (result) => setBcb({ state: 'ok', ...result }),
+      (error) => error.name !== 'AbortError' && setBcb({ state: 'error', message: error.message }),
+    );
+    return () => controller.abort();
+  }, []);
+  const bcbRateFor = (forma) => (bcb.state === 'ok' ? bcb.rates[BCB_KEY_BY_FORMA[forma]] ?? null : null);
 
   const fetchFinancialData = async () => {
     setLoading(true);
@@ -450,8 +463,17 @@ export default function CustosETaxasScreen() {
                   <View style={styles.cardItemInfo}>
                     <Text style={styles.cellTextBold} numberOfLines={1}>{item.bandeira}</Text>
                     <Text style={styles.subCategoryText}>{item.forma}</Text>
-                    <Text style={styles.cellBadgeMobile} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.cellBadgeMobile,
+                        bcbRateFor(item.forma) != null && Number(item.taxa) > bcbRateFor(item.forma) && { color: '#E11D48' },
+                      ]}
+                      numberOfLines={1}
+                    >
                       Taxa: {Number(item.taxa).toFixed(2)}%
+                    </Text>
+                    <Text style={styles.subCategoryText}>
+                      Média nacional (BCB): {bcbRateFor(item.forma) != null ? `${bcbRateFor(item.forma).toFixed(2)}%` : '—'}
                     </Text>
                   </View>
                   <View style={styles.actionsCellCard}>
@@ -656,6 +678,26 @@ export default function CustosETaxasScreen() {
                 />
               </View>
 
+              {tab === 'taxas' && (
+                <View style={styles.bcbHint}>
+                  {bcb.state === 'loading' && <Text style={styles.bcbHintText}>Consultando o Banco Central…</Text>}
+                  {bcb.state === 'error' && <Text style={styles.bcbHintText}>Banco Central indisponível no momento.</Text>}
+                  {bcb.state === 'ok' && bcbRateFor(categoriaInput) != null && (
+                    <>
+                      <Text style={styles.bcbHintText}>
+                        Média nacional para {categoriaInput.toLowerCase()}: <Text style={{ fontWeight: '700' }}>{bcbRateFor(categoriaInput).toFixed(2)}%</Text> ({bcb.label})
+                      </Text>
+                      <TouchableOpacity onPress={() => setValorInput(bcbRateFor(categoriaInput).toFixed(2))} style={styles.bcbButton}>
+                        <Text style={styles.bcbButtonText}>Usar média do Banco Central</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  {bcb.state === 'ok' && bcbRateFor(categoriaInput) == null && (
+                    <Text style={styles.bcbHintText}>O Banco Central não publica taxa média para esta forma de pagamento.</Text>
+                  )}
+                </View>
+              )}
+
               <View style={styles.modalButtonsRow}>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonCancel]}
@@ -733,6 +775,10 @@ const ACCENT_GREEN = '#00A86B';
 const BG_LIGHT = '#F8FAFC';
 
 const styles = StyleSheet.create({
+  bcbHint: { gap: 8, padding: 10, marginBottom: 12, borderRadius: 8, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' },
+  bcbHintText: { fontSize: 13, color: '#1E3A8A' },
+  bcbButton: { alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: '#93C5FD', backgroundColor: '#FFFFFF' },
+  bcbButtonText: { fontSize: 12, fontWeight: '700', color: '#1D4ED8' },
   mainWrapper: { flex: 1, backgroundColor: BG_LIGHT },
   container: { flex: 1 },
   contentPadding: { padding: 10, paddingBottom: 32 },
