@@ -8,7 +8,7 @@ import { calculateProcedure, formatBRL } from '../utils/costCalculations';
 // Mesma tela do app: custos fixos e taxas ficam nas tabelas custos_fixos e taxas_pagamento do Supabase
 const TABS = [
   { value: 'custos', label: 'Fixos' },
-  { value: 'variaveis', label: 'Variáveis' },
+  // { value: 'variaveis', label: 'Variáveis' }, // aba desativada por enquanto; basta descomentar para voltar
   { value: 'taxas', label: 'Taxas' },
 ];
 const CATEGORIAS_CUSTOS = ['Estrutura', 'Utilidades', 'Pessoal', 'Administrativo', 'Manutenção'];
@@ -179,7 +179,7 @@ export default function Custos() {
     <>
       <div className="page-title">
         <h1>Custos e Taxas da Clínica</h1>
-        <p>Gerencie custos operacionais fixos, consolidação de variáveis, cálculo de hora/sala e taxas de pagamento.</p>
+        <p>Gerencie custos operacionais fixos, cálculo de hora/sala e taxas de pagamento.</p>
       </div>
 
       <div className="metric-row">
