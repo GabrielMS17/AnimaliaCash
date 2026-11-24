@@ -28,7 +28,7 @@ export function formatDateBR(iso) {
 
 const toItems = (items) => items.map((item) => ({ insumo_id: item.insumoId, quantidade: item.quantity }));
 
-export async function registerAttendance({ procedure, date, status, times, value, form, feePercent, patient, notes, items }) {
+export async function registerAttendance({ procedure, date, status, times, value, form, feePercent, commissionPercent, commission, patient, notes, items }) {
   const { data, error } = await supabase.rpc('registrar_atendimento', {
     p_procedure_id: procedure.id,
     p_procedure_name: procedure.name,
@@ -44,7 +44,12 @@ export async function registerAttendance({ procedure, date, status, times, value
     p_itens: status === 'realizado' ? toItems(items) : [],
   });
   if (error) throw attendanceError(error);
-  return data;
+  // O atendimento já foi gravado: se só a comissão falhar, ela segue o percentual da ficha no Resultado
+  const { error: commissionError } = await supabase
+    .from('atendimentos')
+    .update({ comissao_percentual: commissionPercent ?? null, comissao_valor: commission ?? null })
+    .eq('id', data);
+  return { id: data, commissionSaved: !commissionError };
 }
 
 export async function concludeAttendance({ id, date, items }) {
@@ -73,13 +78,21 @@ export async function fetchAttendanceItems(ids) {
   const result = new Map();
   for (let start = 0; start < ids.length; start += 100) {
     const chunk = ids.slice(start, start + 100);
-    const { data, error } = await supabase
-      .from('estoque_movimentos')
-      .select('atendimento_id, insumo_id, quantidade, custo_unitario')
-      .eq('tipo', 'consumo')
-      .in('atendimento_id', chunk);
-    if (error) throw new Error(`Não foi possível ler os itens usados: ${error.message}`);
-    data.forEach((row) => {
+    // Uma consulta devolve no máximo 1000 linhas e 100 atendimentos passam disso
+    const rows = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase
+        .from('estoque_movimentos')
+        .select('atendimento_id, insumo_id, quantidade, custo_unitario')
+        .eq('tipo', 'consumo')
+        .in('atendimento_id', chunk)
+        .order('id', { ascending: true })
+        .range(offset, offset + 999);
+      if (error) throw new Error(`Não foi possível ler os itens usados: ${error.message}`);
+      rows.push(...data);
+      if (data.length < 1000) break;
+    }
+    rows.forEach((row) => {
       const list = result.get(row.atendimento_id) ?? [];
       const quantity = Math.abs(Number(row.quantidade));
       const existing = list.find((item) => item.insumoId === row.insumo_id);
@@ -105,9 +118,10 @@ export async function fetchAttendances(fromDate) {
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await supabase
       .from('atendimentos')
-      .select('id, procedure_id, procedure_name, categoria, quantidade, data_realizacao, status, valor_cobrado, forma_pagamento, taxa_percentual, paciente, observacao, estoque_baixado, created_at')
+      .select('id, procedure_id, procedure_name, categoria, quantidade, data_realizacao, status, valor_cobrado, forma_pagamento, taxa_percentual, comissao_percentual, comissao_valor, paciente, observacao, estoque_baixado, created_at')
       .gte('data_realizacao', fromDate)
       .order('data_realizacao', { ascending: true })
+      .order('id', { ascending: true })
       .range(offset, offset + 999);
     if (error) {
       if (MISSING_CODES.has(error.code)) return null;

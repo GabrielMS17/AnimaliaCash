@@ -20,7 +20,8 @@ import ForecastChart from './ForecastChart';
 import { COLORS, ErrorBanner, NumberInput, SectionHeader, Select, useIsWide } from './ui';
 
 const EMPTY = [];
-const HISTORY_MONTHS = 7; // 6 meses fechados + o mês atual
+const HISTORY_MONTHS = 13; // 12 meses fechados (treino da previsão) + o mês atual
+const CHART_MONTHS = 6; // meses fechados mostrados no gráfico
 const USAGE_WINDOW_DAYS = 30;
 const FORECAST_OFFSETS = [1, 2, 3, 4]; // mês atual (em andamento) + 3 meses à frente
 
@@ -273,7 +274,7 @@ export default function ResultPage() {
                     hint={`Tendência ${trendText(forecastProfit.trendPerMonth)}`}
                   />
                 </View>
-                <ForecastChart history={trainMonths} rows={forecastRows} />
+                <ForecastChart history={trainMonths.slice(-CHART_MONTHS)} rows={forecastRows} />
                 <View style={styles.table}>
                   {forecastRows.map((row) => (
                     <View key={row.month} style={[styles.forecastRow, row.isCurrent && styles.currentRow]}>

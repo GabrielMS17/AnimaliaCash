@@ -146,6 +146,8 @@ export default function ProcedureConsumeModal({
         value,
         form,
         feePercent,
+        commissionPercent: commissionBreakdown?.vetCommissionPercent,
+        commission: Number(commission.toFixed(2)),
         patient: patient.trim(),
         notes: [notes.trim(), adjustmentNote].filter(Boolean).join(' | '),
         items: toConsume,
