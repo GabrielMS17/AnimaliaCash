@@ -127,10 +127,17 @@ function procedureEconomics(procedure, insumosMap, settings) {
   return {
     price: procedure.suggestedPrice > 0 ? procedure.suggestedPrice : breakdown.suggestedPriceByMargin,
     external: breakdown.externalProfessionalCost,
-    commission: breakdown.vetCommissionCost,
+    commissionPercent: breakdown.vetCommissionPercent,
+    commissionFixed: breakdown.vetCommissionFixed,
     expectedStockCost: procedureStockItems(procedure, insumosMap, 1)
       .reduce((sum, item) => sum + item.quantity * (insumosMap.get(item.insumoId)?.costPerUnit ?? 0), 0),
   };
+}
+
+/** Comissão de um atendimento: percentual sobre o valor cobrado, ou valor fixo por realização. */
+function attendanceCommission(eco, revenue, times) {
+  if (!eco) return 0;
+  return revenue * (eco.commissionPercent / 100) + eco.commissionFixed * times;
 }
 
 /** Taxa média ponderada pelo mix estimado (usada quando a forma de pagamento não foi informada). */
@@ -198,7 +205,7 @@ export function computeMonth({ month, movements, attendances: registered, fixedC
         realStockCost: stockByAttendance.get(row.id) ?? 0,
         stockTracked: row.estoque_baixado,
         external: (eco?.external ?? 0) * times,
-        commission: (eco?.commission ?? 0) * times,
+        commission: attendanceCommission(eco, revenue, times),
         expectedStockCost: (eco?.expectedStockCost ?? 0) * times,
         category: row.categoria,
         missingProcedure: !eco,
@@ -220,7 +227,7 @@ export function computeMonth({ month, movements, attendances: registered, fixedC
         fee: eco.price * (feePercent / 100),
         stockTracked: true,
         external: eco.external,
-        commission: eco.commission,
+        commission: attendanceCommission(eco, eco.price, 1),
         expectedStockCost: eco.expectedStockCost,
         legacy: true,
       };

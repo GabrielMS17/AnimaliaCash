@@ -3,7 +3,7 @@ import { Field, NumberInput, SectionHeader } from '../components/ui';
 import { useAuth } from '../store/AuthContext';
 import { useData } from '../store/DataContext';
 import { supabase } from '../supabase';
-import { formatBRL } from '../utils/costCalculations';
+import { findCommissionConflict, formatBRL, getTargetMargin } from '../utils/costCalculations';
 
 const withoutProfessionals = ({ externalProfessionals, ...rest }) => rest;
 const sameFields = (a, b) => JSON.stringify(withoutProfessionals(a)) === JSON.stringify(withoutProfessionals(b));
@@ -17,6 +17,7 @@ export default function Configuracoes() {
   const [professionalCost, setProfessionalCost] = useState(0);
   const [editingId, setEditingId] = useState(null);
   const [professionalMessage, setProfessionalMessage] = useState('');
+  const [commissionError, setCommissionError] = useState('');
 
   // Acompanha mudanças vindas de fora do formulário (ex: dados baixados do Supabase)
   const [lastSettings, setLastSettings] = useState(settings);
@@ -77,6 +78,9 @@ export default function Configuracoes() {
         onSubmit={(event) => {
           event.preventDefault();
           const clinicName = form.clinicName.trim();
+          const blocked = findCommissionConflict(procedures, { ...settings, ...withoutProfessionals(form) });
+          setCommissionError(blocked ? `Comissão alta demais: em "${blocked.name}", a margem de ${getTargetMargin(blocked)}% + a comissão chegam a 100%.` : '');
+          if (blocked) return;
           saveSettings({ ...settings, ...withoutProfessionals(form), clinicName });
           setForm((prev) => ({ ...prev, clinicName }));
           setSaved(true);
@@ -141,7 +145,7 @@ export default function Configuracoes() {
 
         <section>
           <h2>Comissões padrão</h2>
-          <p className="muted">Para os profissionais da clínica, aplicado aos procedimentos sem comissão própria. Terceirizados não recebem comissão e o custo deles fica fora do cálculo: a base é o preço menos esse custo ou, sem preço, os insumos mais o custo operacional.</p>
+          <p className="muted">Percentual sobre o preço cobrado, para os profissionais da clínica, aplicado aos procedimentos sem comissão própria. Sem preço na ficha, usa o preço sugerido. No Resultado do mês, usa o valor cobrado em cada atendimento.</p>
           <div className="form-row">
             <Field label="Cirurgias">
               <NumberInput suffix="%" min={0} max={100} value={form.defaultVetCommissionSurgeryPercent ?? 0} onChange={(value) => update('defaultVetCommissionSurgeryPercent', value)} />
@@ -155,6 +159,7 @@ export default function Configuracoes() {
           </div>
         </section>
 
+        {commissionError && <div className="error-banner" role="alert">{commissionError}</div>}
         <div className="save-bar">
           {saved && !isDirty && <span className="saved-text">✓ Salvo</span>}
           <button type="submit" className="btn btn-primary" disabled={!isDirty}>Salvar configurações</button>

@@ -5,7 +5,9 @@ import {
   formatDecimal,
   formatUnitCost,
   getCategoryLabel,
+  findCommissionConflict,
   getDefaultCommissionPercent,
+  getTargetMargin,
 } from '../utils/costCalculations';
 import { UNIT_OPTIONS } from './InsumoModal';
 import { Field, Modal, NumberInput, Segmented } from './ui';
@@ -142,6 +144,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
     const invalidItem = items.findIndex((item) => !(item.quantity > 0));
     if (invalidItem >= 0) return fail('insumos', `A quantidade do item #${invalidItem + 1} deve ser maior que zero.`);
     if (commissionType === 'percent' && commissionValue > 100) return fail('custos', 'O percentual de comissão não pode ultrapassar 100%.');
+    if (findCommissionConflict([draft], settings)) return fail('custos', `Margem de ${formatDecimal(getTargetMargin(draft))}% + comissão não pode chegar a 100% sem um preço definido.`);
     return onSave({ ...draft, id: procedure?.id ?? `proc_${Date.now()}` });
   };
 
@@ -417,7 +420,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
 
             <Field
               label="Preço cobrado do tutor (opcional)"
-              hint="Quando informado, a comissão percentual é calculada sobre este preço menos o custo dos terceirizados. Sem preço, ela incide sobre os insumos e o custo operacional."
+              hint={`A comissão percentual é calculada sobre este preço. Sem preço, usa o preço sugerido pela margem: ${formatBRL(breakdown.suggestedPriceByMargin)}.`}
             >
               <NumberInput prefix="R$" min={0} placeholder="0,00" value={price} onChange={setPrice} />
             </Field>
