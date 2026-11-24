@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { expiredLotQuestion, maskDateBR, NON_STOCK_UNITS, parseDateBR } from '../services/stockService';
 import { formatBRL, formatDecimal, formatUnitCost } from '../utils/costCalculations';
-import { AppModal, Button, Checkbox, COLORS, confirmAction, ErrorBanner, Field, Input, NumberInput, Select, useAccent, useIsWide } from './ui';
+import { AppModal, Button, COLORS, confirmAction, ErrorBanner, Field, Input, NumberInput, Select, useAccent, useIsWide } from './ui';
 
 export const UNIT_OPTIONS = [
   { value: 'un', label: 'Unidade (un)' },
@@ -57,8 +57,8 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
   const [name, setName] = useState(insumo?.name ?? '');
   const [category, setCategory] = useState(insumo?.category ?? 'geral');
   const [unit, setUnit] = useState(insumo?.unit ?? 'un');
-  // Novo insumo começa pela compra em embalagem; existente sem embalagem abre no custo direto
-  const [directCost, setDirectCost] = useState(isEditing && !hasPackage);
+  // Cadastro é sempre por embalagem; itens antigos sem embalagem (ex: energia) seguem com o custo por unidade
+  const directCost = isEditing && !hasPackage;
   const [packageType, setPackageType] = useState(insumo?.packageType ?? 'caixa');
   const [packagePrice, setPackagePrice] = useState(insumo?.packagePrice ?? 0);
   const [packageSize, setPackageSize] = useState(insumo?.packageSize ?? 0);
@@ -67,16 +67,14 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
   const [brand, setBrand] = useState(insumo?.brand ?? '');
   const [minStock, setMinStock] = useState(insumo?.minStock ?? 0);
   const [entryPackages, setEntryPackages] = useState(1);
-  const [entryQuantity, setEntryQuantity] = useState(0);
   const [entryLot, setEntryLot] = useState('');
   const [initialExpiry, setInitialExpiry] = useState('');
   const [saving, setSaving] = useState(false);
   // O mesmo id em uma nova tentativa: se a entrada falhar, salvar de novo não duplica o item
   const [itemId] = useState(() => insumo?.id ?? `ins_${Date.now()}`);
-  // Sem escolha do usuário, segue a unidade: kWh, minuto, hora e diária não têm estoque
-  const [trackChoice, setTrackChoice] = useState(insumo?.trackStock);
+  // kWh, minuto, hora e diária não têm estoque; os demais têm
   const autoTrack = !NON_STOCK_UNITS.includes(unit);
-  const trackStock = trackChoice ?? autoTrack;
+  const trackStock = insumo?.trackStock ?? autoTrack;
   const [errorMsg, setErrorMsg] = useState('');
 
   const packageLabel = PACKAGE_OPTIONS.find((option) => option.value === packageType)?.label.toLowerCase() ?? 'embalagem';
@@ -84,9 +82,9 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
   const ofThe = isMasculine ? 'do' : 'da';
   const inThe = isMasculine ? 'no' : 'na';
   const costPerUnit = directCost ? manualCost : packagePrice > 0 && packageSize > 0 ? packagePrice / packageSize : 0;
-  // Primeira entrada (só no cadastro): em embalagens ou, no custo direto, na própria unidade
-  const entryUnits = directCost ? entryQuantity : entryPackages * packageSize;
-  const entryTotal = directCost ? entryQuantity * manualCost : entryPackages * packagePrice;
+  // Primeira entrada (só no cadastro)
+  const entryUnits = entryPackages * packageSize;
+  const entryTotal = entryPackages * packagePrice;
 
   const handleSave = async () => {
     // 1. Sanitização e Validação do Nome (Proteção contra strings vazias ou excessivas)
@@ -138,9 +136,9 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
       const question = expiredLotQuestion(expiresAt, `${formatDecimal(entryUnits, 3)} ${unit}`);
       if (question && !(await confirmAction(question, 'Salvar mesmo assim'))) return undefined;
       initialEntry = {
-        packages: directCost ? entryQuantity : entryPackages,
-        unitsPerPackage: directCost ? 1 : packageSize,
-        packageType: directCost ? 'unidade' : packageType,
+        packages: entryPackages,
+        unitsPerPackage: packageSize,
+        packageType,
         totalCost: Number(entryTotal.toFixed(2)),
         lotNumber: entryLot.trim(),
         expiresAt,
@@ -278,73 +276,51 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
         </View>
       )}
 
-      <Checkbox
-        checked={directCost}
-        onChange={(checked) => {
-          // Ao trocar para custo direto, parte do valor que a embalagem calculava
-          if (checked && costPerUnit > 0) setManualCost(Number(costPerUnit.toFixed(4)));
-          setDirectCost(checked);
-          setErrorMsg('');
-        }}
-        label="Informar custo unitário direto (sem embalagem, ex: kWh, diária)"
-      />
-
-      <View style={styles.group}>
-        <Text style={styles.groupTitle}>Estoque</Text>
-        <Checkbox
-          checked={trackStock}
-          onChange={setTrackChoice}
-          label="Controlar o estoque deste item (desmarque para energia, água da torneira, tempo...)"
-        />
-        {trackStock && !isEditing && (
-          <>
-            <View style={row}>
-              {directCost ? (
-                <Field label="Quantidade que está entrando" hint="Deixe 0 para só cadastrar o item." style={isWide ? styles.fieldWide : undefined}>
-                  <NumberInput min={0} placeholder="0" value={entryQuantity} onChange={setEntryQuantity} suffix={unit} />
-                </Field>
-              ) : (
+      {trackStock && (
+        <View style={styles.group}>
+          <Text style={styles.groupTitle}>Estoque</Text>
+          {!isEditing && (
+            <>
+              <View style={row}>
                 <Field label="Embalagens entrando" hint="Deixe 0 para só cadastrar o item." style={isWide ? styles.fieldWide : undefined}>
                   <NumberInput min={0} placeholder="Ex: 3" value={entryPackages} onChange={setEntryPackages} />
                 </Field>
-              )}
-              <Field label="Número do lote (opcional)" style={isWide ? styles.fieldWide : undefined}>
-                <Input placeholder="Ex: L2026-045" value={entryLot} onChangeText={setEntryLot} autoCapitalize="characters" />
-              </Field>
-              <Field label="Validade (opcional)" style={isWide ? styles.fieldWide : undefined}>
-                <Input
-                  placeholder="DD/MM/AAAA"
-                  value={initialExpiry}
-                  onChangeText={(text) => {
-                    setInitialExpiry(maskDateBR(text));
-                    setErrorMsg('');
-                  }}
-                  keyboardType="number-pad"
-                  inputMode="numeric"
-                  maxLength={10}
-                />
-              </Field>
-            </View>
-            <View style={[styles.costBox, { backgroundColor: accent.soft }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.costLabel}>Entra no estoque</Text>
-                <Text style={styles.costFormula}>
-                  {directCost ? '' : `${formatDecimal(entryPackages, 3)} × ${formatDecimal(packageSize, 3)} ${unit} · `}total {formatBRL(entryTotal)}
-                </Text>
+                <Field label="Número do lote (opcional)" style={isWide ? styles.fieldWide : undefined}>
+                  <Input placeholder="Ex: L2026-045" value={entryLot} onChangeText={setEntryLot} autoCapitalize="characters" />
+                </Field>
+                <Field label="Validade (opcional)" style={isWide ? styles.fieldWide : undefined}>
+                  <Input
+                    placeholder="DD/MM/AAAA"
+                    value={initialExpiry}
+                    onChangeText={(text) => {
+                      setInitialExpiry(maskDateBR(text));
+                      setErrorMsg('');
+                    }}
+                    keyboardType="number-pad"
+                    inputMode="numeric"
+                    maxLength={10}
+                  />
+                </Field>
               </View>
-              <Text style={styles.costValue}>{formatDecimal(entryUnits, 3)} {unit}</Text>
-            </View>
-          </>
-        )}
-        {trackStock && isEditing && (
-          <Text style={styles.muted}>Para somar quantidade, use o botão “Entrada” do item. Para corrigir um lote, use “Lotes”.</Text>
-        )}
-        {trackStock && (
+              <View style={[styles.costBox, { backgroundColor: accent.soft }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.costLabel}>Entra no estoque</Text>
+                  <Text style={styles.costFormula}>
+                    {formatDecimal(entryPackages, 3)} × {formatDecimal(packageSize, 3)} {unit} · total {formatBRL(entryTotal)}
+                  </Text>
+                </View>
+                <Text style={styles.costValue}>{formatDecimal(entryUnits, 3)} {unit}</Text>
+              </View>
+            </>
+          )}
+          {isEditing && (
+            <Text style={styles.muted}>Para somar quantidade, use o botão “Entrada” do item. Para corrigir um lote, use “Lotes”.</Text>
+          )}
           <Field label="Estoque mínimo (opcional)" hint="Abaixo deste saldo o item aparece com alerta de reposição.">
             <NumberInput min={0} placeholder="0" value={minStock} onChange={setMinStock} suffix={unit} style={{ width: 170 }} />
           </Field>
-        )}
-      </View>
+        </View>
+      )}
 
       <Field label="Marca / fabricante (opcional)">
         <Input placeholder="Ex: Zoetis, Ourofino" value={brand} onChangeText={setBrand} />

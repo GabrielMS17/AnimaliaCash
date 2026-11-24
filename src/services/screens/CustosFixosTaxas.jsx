@@ -10,20 +10,18 @@ import {
   View
 } from 'react-native';
 import AppHeader from '../../components/AppHeader';
-import { NumberInput } from '../../components/ui';
 import { BCB_KEY_BY_FORMA, fetchBcbMdr } from '../bcbTaxas';
 import { useAnimaliaData } from '../../store/AnimaliaDataContext';
 import { supabase } from '../../supabase';
 import { calculateProcedure } from '../../utils/costCalculations';
 
 export default function CustosETaxasScreen() {
-  const { procedures, insumosMap, settings, saveSettings } = useAnimaliaData();
+  const { procedures, insumosMap, settings } = useAnimaliaData();
   
   const [tab, setTab] = useState('custos'); // 'custos', 'variaveis', 'taxas'
   const [custosFixos, setCustosFixos] = useState([]);
   const [taxasPagamento, setTaxasPagamento] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [wasteRateInput, setWasteRateInput] = useState(settings.averageProductWastePercent ?? 0);
 
   // Estados do Modal de Cadastro / Edição
   const [modalVisible, setModalVisible] = useState(false);
@@ -53,10 +51,6 @@ export default function CustosETaxasScreen() {
   useEffect(() => {
     fetchFinancialData();
   }, []);
-
-  useEffect(() => {
-    setWasteRateInput(settings.averageProductWastePercent ?? 0);
-  }, [settings.averageProductWastePercent]);
 
   // Taxas médias do Banco Central (API de dados abertos), para comparar e preencher as taxas
   const [bcb, setBcb] = useState({ state: 'loading' });
@@ -147,7 +141,6 @@ export default function CustosETaxasScreen() {
   };
 
   const diagnosticoIA = avaliarSaudeFinanceiraIA();
-  const wasteRateChanged = wasteRateInput !== (settings.averageProductWastePercent ?? 0);
 
   const handleOpenModalCriacao = () => {
     setEditandoId(null);
@@ -233,16 +226,6 @@ export default function CustosETaxasScreen() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleSaveWasteRate = () => {
-    if (!Number.isFinite(wasteRateInput) || wasteRateInput < 0) {
-      alert('Informe uma taxa média de desperdício válida.');
-      return;
-    }
-
-    saveSettings({ ...settings, averageProductWastePercent: wasteRateInput });
-    alert('Taxa média de desperdício salva como referência. Ela não altera os custos calculados.');
   };
 
   const promptDelete = (item) => {
@@ -407,25 +390,6 @@ export default function CustosETaxasScreen() {
         ) : tab === 'variaveis' ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Custos Variáveis por Categoria</Text>
-            <View style={styles.wasteRateEditor}>
-              <Text style={styles.inputLabel}>Taxa média de desperdício dos produtos (%)</Text>
-              <NumberInput
-                min={0}
-                value={wasteRateInput}
-                onChange={setWasteRateInput}
-                suffix="%"
-              />
-              <Text style={styles.wasteRateHelp}>
-                Valor informativo; não altera automaticamente os custos calculados.
-              </Text>
-              <TouchableOpacity
-                style={[styles.buttonPrimary, !wasteRateChanged && styles.buttonDisabled]}
-                onPress={handleSaveWasteRate}
-                disabled={!wasteRateChanged}
-              >
-                <Text style={styles.buttonText}>Salvar taxa média</Text>
-              </TouchableOpacity>
-            </View>
             <Text style={styles.aiCardDesc}>Toque em uma categoria para ver os itens detalhados.</Text>
 
             {custosVariaveisConsolidados.map((item) => (
@@ -1010,15 +974,6 @@ const styles = StyleSheet.create({
   },
   inputContainer: { marginBottom: 10 },
   inputLabel: { fontSize: 10, fontWeight: '700', color: PRIMARY_DARK, marginBottom: 4 },
-  wasteRateEditor: {
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  wasteRateHelp: { fontSize: 10, color: '#64748B', marginTop: 6, marginBottom: 8 },
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
