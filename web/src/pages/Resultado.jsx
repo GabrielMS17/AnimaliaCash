@@ -21,7 +21,8 @@ import { formatBRL, formatDecimal } from '../utils/costCalculations';
 import { findAnomalies, forecastAhead, stockoutForecast } from '../utils/forecast';
 
 const EMPTY = [];
-const HISTORY_MONTHS = 7; // 6 meses fechados + o mês atual
+const HISTORY_MONTHS = 13; // 12 meses fechados (treino da previsão) + o mês atual
+const CHART_MONTHS = 6; // meses fechados mostrados no gráfico
 const USAGE_WINDOW_DAYS = 30;
 const FORECAST_OFFSETS = [1, 2, 3, 4]; // mês atual (em andamento) + 3 meses à frente
 
@@ -334,7 +335,7 @@ export default function Resultado() {
                     hint={`Tendência ${trendText(forecastProfit.trendPerMonth)}`}
                   />
                 </div>
-                <ForecastChart history={trainMonths} rows={forecastRows} />
+                <ForecastChart history={trainMonths.slice(-CHART_MONTHS)} rows={forecastRows} />
                 <div className="table-scroll">
                   <table className="forecast-table">
                     <thead>

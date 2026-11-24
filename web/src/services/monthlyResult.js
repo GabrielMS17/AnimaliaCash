@@ -47,6 +47,7 @@ export async function loadData(months) {
       .select('id, insumo_id, tipo, quantidade, custo_unitario, procedure_id, procedure_name, atendimento_id, created_at')
       .gte('created_at', from)
       .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
       .range(offset, offset + 999);
     if (error) throw new Error(`Não foi possível ler as movimentações do estoque: ${error.message}`);
     movements.push(...data);
@@ -198,7 +199,8 @@ export function computeMonth({ month, movements, attendances: registered, fixedC
         realStockCost: stockByAttendance.get(row.id) ?? 0,
         stockTracked: row.estoque_baixado,
         external: (eco?.external ?? 0) * times,
-        commission: calculateCommission(eco?.breakdown, revenue, times),
+        // A gravada no dia do atendimento; os antigos seguem o percentual atual da ficha
+        commission: row.comissao_valor != null ? Number(row.comissao_valor) : calculateCommission(eco?.breakdown, revenue, times),
         expectedStockCost: (eco?.expectedStockCost ?? 0) * times,
         category: row.categoria,
         missingProcedure: !eco,
