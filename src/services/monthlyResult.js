@@ -8,6 +8,7 @@
 import { supabase } from '../supabase';
 import { calculateCommission, calculateProcedure } from '../utils/costCalculations';
 import { fetchAttendances } from './attendanceService';
+import { extrasFor, fetchMonthlyCosts, fixedValueFor } from './costService';
 import { procedureStockItems } from './stockService';
 
 export const PAYMENT_FORMS = [
@@ -37,6 +38,18 @@ export function monthLabel(key) {
 
 // ---------- Dados do banco ----------
 
+/** Custos fixos, taxas e valores por mês (monthly = null quando a tabela ainda não existe). */
+export async function loadCosts() {
+  const [fixos, taxas, monthly] = await Promise.all([
+    supabase.from('custos_fixos').select('id, nome, categoria, valor').order('nome', { ascending: true }),
+    supabase.from('taxas_pagamento').select('id, bandeira, forma, taxa').order('bandeira', { ascending: true }),
+    fetchMonthlyCosts(),
+  ]);
+  if (fixos.error) throw new Error(`Não foi possível ler os custos fixos: ${fixos.error.message}`);
+  if (taxas.error) throw new Error(`Não foi possível ler as taxas: ${taxas.error.message}`);
+  return { fixedCosts: fixos.data ?? [], fees: taxas.data ?? [], monthly };
+}
+
 export async function loadData(months) {
   const [start] = months;
   const from = `${start}-01T00:00:00`;
@@ -53,15 +66,9 @@ export async function loadData(months) {
     movements.push(...data);
     if (data.length < 1000) break;
   }
-  const [fixos, taxas, attendances] = await Promise.all([
-    supabase.from('custos_fixos').select('nome, valor'),
-    supabase.from('taxas_pagamento').select('bandeira, forma, taxa'),
-    fetchAttendances(`${start}-01`),
-  ]);
-  if (fixos.error) throw new Error(`Não foi possível ler os custos fixos: ${fixos.error.message}`);
-  if (taxas.error) throw new Error(`Não foi possível ler as taxas: ${taxas.error.message}`);
+  const [costs, attendances] = await Promise.all([loadCosts(), fetchAttendances(`${start}-01`)]);
   // attendances = null quando a tabela ainda não existe no banco
-  return { movements, attendances, fixedCosts: fixos.data ?? [], fees: taxas.data ?? [] };
+  return { movements, attendances, ...costs };
 }
 
 /**
@@ -155,7 +162,7 @@ function attendanceFeePercent(row, fees, fallbackPercent) {
 }
 
 /** Monta o resultado de um mês. */
-export function computeMonth({ month, movements, attendances: registered, fixedCosts, fees, procedures, insumosMap, settings, mix }) {
+export function computeMonth({ month, movements, attendances: registered, fixedCosts, monthly, fees, procedures, insumosMap, settings, mix }) {
   const procById = new Map(procedures.map((p) => [p.id, p]));
   const ecoCache = new Map();
   const economics = (procedureId) => {
@@ -255,14 +262,15 @@ export function computeMonth({ month, movements, attendances: registered, fixedC
     .filter((m) => monthKey(m.created_at) === month)
     .filter((m) => m.tipo === 'perda' || (m.tipo === 'ajuste' && Number(m.quantidade) < 0))
     .reduce((total, m) => total + Math.abs(Number(m.quantidade)) * Number(m.custo_unitario || 0), 0);
-  const fixed = fixedCosts.reduce((total, c) => total + Number(c.valor || 0), 0);
+  const fixed = fixedCosts.reduce((total, cost) => total + fixedValueFor(cost, month, monthly), 0);
+  const extras = extrasFor(month, monthly).reduce((total, row) => total + Number(row.valor || 0), 0);
 
   const revenue = sum('revenue');
   const fees_ = sum('fee');
   const supplies = sum('realStockCost');
   const external = sum('external');
   const commission = sum('commission');
-  const contribution = revenue - fees_ - supplies - external - commission;
+  const contribution = revenue - fees_ - supplies - external - commission - extras;
   const profit = contribution - fixed - losses;
   const count = sum('count');
   const contributionPerAttendance = count > 0 ? contribution / count : 0;
@@ -292,6 +300,7 @@ export function computeMonth({ month, movements, attendances: registered, fixedC
     supplies,
     external,
     commission,
+    extras,
     contribution,
     fixed,
     losses,

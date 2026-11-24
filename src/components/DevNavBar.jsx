@@ -9,7 +9,6 @@ const navItems = [
   { href: '/estoque', label: 'Estoque' },
   { href: '/resultado', label: 'Resultado do mês' },
   { href: '/templates', label: 'Templates' },
-  { href: '/custos', label: 'Custos e Taxas' },
   { href: '/cirurgia', label: 'Cirurgias' },
   { href: '/internacao', label: 'Internação' },
   { href: '/banho-tosa', label: 'Banho & Tosa' },

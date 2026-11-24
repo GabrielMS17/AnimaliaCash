@@ -6,7 +6,7 @@ import { canAccessRoute } from '../../utils/accessControl';
 
 const menuItems = [
   { href: '/cadastros', titulo: 'Cadastros', descricao: 'Gerencie os acessos e perfis dos colaboradores' },
-  { href: '/custos', titulo: 'Custos e Taxas', descricao: 'Gerencie custos fixos, custos variáveis e taxas de pagamento' },
+  { href: '/resultado', titulo: 'Resultado do mês', descricao: 'Lucro do mês, custos fixos, custos variáveis e taxas de pagamento' },
   { href: '/estoque', titulo: 'Estoque', descricao: 'Itens, custos, lotes, validade e baixas pelos procedimentos' },
   { href: '/templates', titulo: 'Templates', descricao: 'Gerencie templates e fichas técnicas de procedimentos' },
   { href: '/cirurgia', titulo: 'Cirurgias', descricao: 'Custo de cada cirurgia por peso, com insumos e terceirizados' },

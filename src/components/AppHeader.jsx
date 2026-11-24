@@ -7,7 +7,6 @@ import { ANIMAL_GROOMER_ROLE, canAccessRoute, VETERINARIAN_ROLE } from '../utils
 
 const NAV_ORDER = [
   'cadastros',
-  'custos',
   'estoque',
   'resultado',
   'templates',

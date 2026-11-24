@@ -1,5 +1,6 @@
-import CustosETaxasScreen from '../services/screens/CustosFixosTaxas';
+import { Redirect } from 'expo-router';
 
+// Custos e Taxas agora fica dentro do Resultado do mês
 export default function Custos() {
-  return <CustosETaxasScreen />;
+  return <Redirect href="/resultado" />;
 }
