@@ -145,7 +145,7 @@ export default function Configuracoes() {
 
         <section>
           <h2>Comissões padrão</h2>
-          <p className="muted">Percentual sobre o preço cobrado, para os profissionais da clínica, aplicado aos procedimentos sem comissão própria. Sem preço na ficha, usa o preço sugerido. No Resultado do mês, usa o valor cobrado em cada atendimento.</p>
+          <p className="muted">Percentual sobre o valor cobrado em cada atendimento, para os profissionais da clínica. Vale para os procedimentos sem comissão própria e é calculado ao registrar o atendimento.</p>
           <div className="form-row">
             <Field label="Cirurgias">
               <NumberInput suffix="%" min={0} max={100} value={form.defaultVetCommissionSurgeryPercent ?? 0} onChange={(value) => update('defaultVetCommissionSurgeryPercent', value)} />

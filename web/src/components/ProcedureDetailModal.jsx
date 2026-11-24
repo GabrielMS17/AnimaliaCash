@@ -5,7 +5,6 @@ import {
   formatDuration,
   formatUnitCost,
   getCategoryLabel,
-  getDefaultCommissionPercent,
   getLaborMinutes,
 } from '../utils/costCalculations';
 import { Modal } from './ui';
@@ -15,20 +14,14 @@ export default function ProcedureDetailModal({ procedure, insumosMap, settings, 
   const { breakdown } = calc;
 
   const commissionLabel = procedure.vetCommissionType === 'fixed'
-    ? 'valor fixo'
-    : `${formatDecimal(procedure.vetCommissionValue ?? getDefaultCommissionPercent(procedure.category, settings))}% ${procedure.suggestedPrice ? 'do preço' : 'do preço sugerido'}`;
+    ? `${formatBRL(breakdown.vetCommissionFixed)} por atendimento`
+    : `${formatDecimal(breakdown.vetCommissionPercent)}% do valor cobrado`;
 
   const composition = [
     { label: 'Insumos', detail: `${calc.itemsCount} itens`, value: breakdown.directCost, color: '#6366F1' },
     ...calc.externalProfessionalDetails
       .filter((professional) => professional.cost > 0)
       .map((professional) => ({ label: professional.name, detail: professional.specialty, value: professional.cost, color: '#10B981' })),
-    {
-      label: 'Comissão',
-      detail: [procedure.vetCommissionRole, commissionLabel].filter(Boolean).join(' · '),
-      value: breakdown.vetCommissionCost,
-      color: '#8B5CF6',
-    },
     {
       label: 'Operacional',
       detail: settings.includeLaborInCost
@@ -79,6 +72,7 @@ export default function ProcedureDetailModal({ procedure, insumosMap, settings, 
             <b>{formatBRL(part.value)}</b>
           </div>
         ))}
+        <p className="hint">{`Comissão${procedure.vetCommissionRole ? ` (${procedure.vetCommissionRole})` : ''}: ${commissionLabel}. Não entra neste custo, é calculada ao registrar o atendimento.`}</p>
       </section>
 
       <section>

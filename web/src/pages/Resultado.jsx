@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NumberInput, SectionHeader, Segmented } from '../components/ui';
+import { NumberInput, SectionHeader } from '../components/ui';
 import ConcludeAttendanceModal from '../components/ConcludeAttendanceModal';
 import ForecastChart from '../components/ForecastChart';
 import { cancelAttendance, formatDateBR, todayISO } from '../services/attendanceService';
@@ -8,7 +8,6 @@ import {
   computeMonth,
   dailyUsage,
   DEFAULT_MIX,
-  generateDemoData,
   lastMonths,
   loadData,
   monthKey,
@@ -21,10 +20,7 @@ import { useData } from '../store/DataContext';
 import { formatBRL, formatDecimal } from '../utils/costCalculations';
 import { findAnomalies, forecastAhead, stockoutForecast } from '../utils/forecast';
 
-const MODES = [
-  { value: 'real', label: 'Dados reais' },
-  { value: 'demo', label: 'Demonstração (6 meses simulados)' },
-];
+const EMPTY = [];
 const HISTORY_MONTHS = 7; // 6 meses fechados + o mês atual
 const USAGE_WINDOW_DAYS = 30;
 const FORECAST_OFFSETS = [1, 2, 3, 4]; // mês atual (em andamento) + 3 meses à frente
@@ -40,7 +36,6 @@ const pct = (value) => `${formatDecimal(value, 2)}%`;
 export default function Resultado() {
   const { procedures, insumos, insumosMap, settings } = useData();
   const months = useMemo(() => lastMonths(HISTORY_MONTHS), []);
-  const [mode, setMode] = useState('real');
   const [month, setMonth] = useState(months[months.length - 1]);
   const [mix, setMix] = useState(DEFAULT_MIX);
   const [base, setBase] = useState(null); // { movements, fixedCosts, fees }
@@ -80,13 +75,10 @@ export default function Resultado() {
     };
   }, [months]);
 
-  const source = useMemo(() => {
-    if (!base) return { movements: [], attendances: [] };
-    if (mode === 'demo') return generateDemoData({ procedures, insumosMap, settings, months });
-    return { movements: base.movements, attendances: base.attendances };
-  }, [base, mode, procedures, insumosMap, settings, months]);
-  const { movements, attendances } = source;
-  const tableMissing = mode === 'real' && base && base.attendances === null;
+  // attendances = null quando a tabela de atendimentos ainda não existe no banco
+  const movements = base ? base.movements : EMPTY;
+  const attendances = base ? base.attendances : EMPTY;
+  const tableMissing = base && base.attendances === null;
 
   const fees = useMemo(() => resolveFees(base?.fees ?? [], bcb.state === 'ok' ? bcb.rates : null), [base, bcb]);
   const duplicateFees = PAYMENT_FORMS.flatMap(({ key, label }) => fees[key].duplicates.map((dup) => ({ label, ...dup })));
@@ -189,19 +181,15 @@ export default function Resultado() {
       />
 
       <div className="filters result-filters">
-        <Segmented label="Origem dos dados" options={MODES} value={mode} onChange={setMode} />
         <select aria-label="Mês" value={month} onChange={(event) => setMonth(event.target.value)}>
           {[...months].reverse().map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
         </select>
       </div>
 
-      {mode === 'demo' && (
-        <div className="notice-box">Modo demonstração: 6 meses de atendimentos <strong>simulados só nesta tela</strong> (com valor cobrado, forma de pagamento e agenda), usando as fichas e preços reais da clínica. Nada é gravado no banco.</div>
-      )}
       {tableMissing && (
         <div className="notice-box">A tabela de atendimentos ainda não existe no banco (falta rodar <code>supabase/atendimentos.sql</code>). Por enquanto a receita é <strong>estimada</strong> pelo preço da ficha e cada baixa de estoque conta como um atendimento.</div>
       )}
-      {mode === 'real' && !tableMissing && current && (current.legacyCount > 0 || current.estimatedRevenueCount > 0) && (
+      {!tableMissing && current && (current.legacyCount > 0 || current.estimatedRevenueCount > 0) && (
         <div className="notice-box">
           Neste mês, {current.estimatedRevenueCount} atendimento(s) estão com a <strong>receita estimada</strong> pelo preço da ficha
           {current.legacyCount > 0 ? ` (${current.legacyCount} são baixas de estoque antigas, de antes do registro com data e valor)` : ' (valor cobrado não informado)'}.
@@ -393,7 +381,7 @@ export default function Resultado() {
               </>
             ) : (
               <p className="empty-text">
-                A previsão precisa de pelo menos 3 meses fechados com atendimentos. Use o modo <strong>Demonstração</strong> para ver como ela funciona.
+                A previsão precisa de pelo menos 3 meses fechados com atendimentos.
               </p>
             )}
             {current.month === months[months.length - 1] && current.scheduled.count > 0 && (
@@ -408,7 +396,6 @@ export default function Resultado() {
               <h2>Agenda</h2>
               <p className="muted">
                 Atendimentos marcados. Ao concluir, você confere o que foi usado (dá para ajustar a ficha) e o estoque é baixado.
-                {mode === 'demo' ? ' (Na demonstração os botões ficam desativados.)' : ''}
               </p>
               {agendaMessage && <p className="saved-text" role="status">{agendaMessage}</p>}
               {agenda.length === 0 ? (
@@ -433,13 +420,13 @@ export default function Resultado() {
                               <button
                                 type="button"
                                 className="btn btn-ghost btn-small"
-                                disabled={mode === 'demo' || agendaBusy != null || row.data_realizacao > today}
+                                disabled={agendaBusy != null || row.data_realizacao > today}
                                 title={row.data_realizacao > today ? 'Só dá para concluir no dia ou depois' : undefined}
                                 onClick={() => handleConclude(row)}
                               >
                                 Concluir
                               </button>
-                              <button type="button" className="btn btn-ghost btn-small" disabled={mode === 'demo' || agendaBusy != null} onClick={() => handleCancel(row)}>
+                              <button type="button" className="btn btn-ghost btn-small" disabled={agendaBusy != null} onClick={() => handleCancel(row)}>
                                 Cancelar
                               </button>
                             </td>

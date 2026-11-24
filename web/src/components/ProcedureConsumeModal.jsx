@@ -4,7 +4,7 @@ import { fetchBcbMdr } from '../services/bcbTaxas';
 import { PAYMENT_FORMS, resolveFees } from '../services/monthlyResult';
 import { fetchLots, isStockTracked, procedureStockItems, summarizeLots } from '../services/stockService';
 import { supabase } from '../supabase';
-import { calculateProcedure, formatBRL, formatDecimal } from '../utils/costCalculations';
+import { calculateCommission, calculateProcedure, formatBRL, formatDecimal } from '../utils/costCalculations';
 import StockItemsEditor, { describeAdjustments, expectedMap, itemsToConsume } from './StockItemsEditor';
 import { Field, Modal, NumberInput, Segmented } from './ui';
 
@@ -91,6 +91,13 @@ export default function ProcedureConsumeModal({
   const formKey = PAYMENT_FORMS.find((item) => item.forma === form)?.key;
   const fee = formKey ? fees[formKey] : null;
   const feePercent = fee && fee.source !== 'sem taxa' ? fee.used : null;
+
+  // Comissão do profissional sobre o valor cobrado neste atendimento
+  const commissionBreakdown = procedure ? calculateProcedure(procedure, insumosMap, settings).breakdown : undefined;
+  const commission = calculateCommission(commissionBreakdown, value, times);
+  const commissionDetail = commissionBreakdown?.vetCommissionFixed > 0
+    ? `valor fixo de ${formatBRL(commissionBreakdown.vetCommissionFixed)}${times > 1 ? ` × ${times}` : ''}`
+    : `${formatDecimal(commissionBreakdown?.vetCommissionPercent ?? 0)}% de ${formatBRL(value)}`;
 
   const toConsume = itemsToConsume(items);
   const adjustments = procedure ? describeAdjustments(toConsume, expected, insumosMap) : '';
@@ -229,7 +236,7 @@ export default function ProcedureConsumeModal({
       </div>
 
       <div className="form-row">
-        <Field label="Valor cobrado" hint={`Preço da ficha: ${formatBRL(unitPrice)}${times > 1 ? ` × ${times}` : ''}`}>
+        <Field label="Valor cobrado" hint={`${procedure.suggestedPrice > 0 ? 'Preço da ficha' : 'Preço sugerido'}: ${formatBRL(unitPrice)}${times > 1 ? ` × ${times}` : ''}`}>
           <NumberInput min={0} prefix="R$" label="Valor cobrado" value={value} onChange={(next) => { setValueTouched(true); setValue(next); }} />
         </Field>
         <Field
@@ -241,6 +248,14 @@ export default function ProcedureConsumeModal({
             {PAYMENT_FORMS.map((item) => <option key={item.key} value={item.forma}>{item.label}</option>)}
           </select>
         </Field>
+      </div>
+
+      <div className="cost-box">
+        <div>
+          <span>Comissão do profissional{procedure.vetCommissionRole ? ` (${procedure.vetCommissionRole})` : ''}</span>
+          <small>{commissionDetail}</small>
+        </div>
+        <strong>{formatBRL(commission)}</strong>
       </div>
 
       <div className="form-row">

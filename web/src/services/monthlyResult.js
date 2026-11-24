@@ -6,7 +6,7 @@
 // - perdas = baixas por vencimento, quebra ou ajuste
 // - custos fixos e taxas de pagamento cadastrados
 import { supabase } from '../supabase';
-import { calculateProcedure } from '../utils/costCalculations';
+import { calculateCommission, calculateProcedure } from '../utils/costCalculations';
 import { fetchAttendances } from './attendanceService';
 import { procedureStockItems } from './stockService';
 
@@ -127,17 +127,10 @@ function procedureEconomics(procedure, insumosMap, settings) {
   return {
     price: procedure.suggestedPrice > 0 ? procedure.suggestedPrice : breakdown.suggestedPriceByMargin,
     external: breakdown.externalProfessionalCost,
-    commissionPercent: breakdown.vetCommissionPercent,
-    commissionFixed: breakdown.vetCommissionFixed,
+    breakdown,
     expectedStockCost: procedureStockItems(procedure, insumosMap, 1)
       .reduce((sum, item) => sum + item.quantity * (insumosMap.get(item.insumoId)?.costPerUnit ?? 0), 0),
   };
-}
-
-/** Comissão de um atendimento: percentual sobre o valor cobrado, ou valor fixo por realização. */
-function attendanceCommission(eco, revenue, times) {
-  if (!eco) return 0;
-  return revenue * (eco.commissionPercent / 100) + eco.commissionFixed * times;
 }
 
 /** Taxa média ponderada pelo mix estimado (usada quando a forma de pagamento não foi informada). */
@@ -205,7 +198,7 @@ export function computeMonth({ month, movements, attendances: registered, fixedC
         realStockCost: stockByAttendance.get(row.id) ?? 0,
         stockTracked: row.estoque_baixado,
         external: (eco?.external ?? 0) * times,
-        commission: attendanceCommission(eco, revenue, times),
+        commission: calculateCommission(eco?.breakdown, revenue, times),
         expectedStockCost: (eco?.expectedStockCost ?? 0) * times,
         category: row.categoria,
         missingProcedure: !eco,
@@ -227,7 +220,7 @@ export function computeMonth({ month, movements, attendances: registered, fixedC
         fee: eco.price * (feePercent / 100),
         stockTracked: true,
         external: eco.external,
-        commission: attendanceCommission(eco, eco.price, 1),
+        commission: calculateCommission(eco.breakdown, eco.price, 1),
         expectedStockCost: eco.expectedStockCost,
         legacy: true,
       };
@@ -321,124 +314,4 @@ export function dailyUsage(movements, days, today = new Date()) {
       usage.set(m.insumo_id, list);
     });
   return usage;
-}
-
-// ---------- Modo demonstração ----------
-
-// Gerador pseudoaleatório com semente: a demonstração sai igual toda vez
-function seededRandom(seed) {
-  let a = seed;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-const isoDay = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-function pickForm(random) {
-  const total = Object.values(DEFAULT_MIX).reduce((sum, v) => sum + v, 0);
-  let roll = random() * total;
-  const found = PAYMENT_FORMS.find(({ key }) => {
-    roll -= DEFAULT_MIX[key];
-    return roll < 0;
-  });
-  return (found ?? PAYMENT_FORMS[0]).forma;
-}
-
-/**
- * Seis meses de atendimentos simulados, no mesmo formato das tabelas reais (atendimentos + movimentações),
- * mais alguns agendados até o mês que vem. Nada é gravado: serve só para ver o resultado e a previsão com histórico.
- */
-export function generateDemoData({ procedures, insumosMap, settings, months, today = new Date() }) {
-  const random = seededRandom(20261116);
-  const usable = procedures.filter((p) => procedureStockItems(p, insumosMap, 1).length > 0);
-  if (usable.length === 0) return { movements: [], attendances: [] };
-  const movements = [];
-  const attendances = [];
-  const priceOf = (procedure) => procedureEconomics(procedure, insumosMap, settings).price;
-  const newAttendance = (procedure, id, date, status) => ({
-    id,
-    procedure_id: procedure.id,
-    procedure_name: procedure.name,
-    categoria: procedure.category,
-    quantidade: 1,
-    data_realizacao: date,
-    status,
-    // Descontos e arredondamentos: o cobrado varia um pouco em torno do preço da ficha
-    valor_cobrado: Math.round(priceOf(procedure) * (0.97 + random() * 0.13)),
-    forma_pagamento: status === 'realizado' || random() < 0.5 ? pickForm(random) : null,
-    taxa_percentual: null,
-    estoque_baixado: status === 'realizado',
-  });
-  let seq = 0;
-
-  months.forEach((month, index) => {
-    const [y, m] = month.split('-').map(Number);
-    const isCurrent = index === months.length - 1;
-    const lastDay = isCurrent ? today.getDate() : new Date(y, m, 0).getDate();
-    // Clínica saudável e crescendo: começa acima do ponto de equilíbrio e ganha ~4 atendimentos por mês
-    const fullMonthCount = 52 + index * 4 + Math.round((random() - 0.5) * 8);
-    const count = Math.max(1, Math.round(fullMonthCount * (lastDay / new Date(y, m, 0).getDate())));
-
-    for (let i = 0; i < count; i++) {
-      const procedure = usable[Math.floor(random() * usable.length)];
-      const day = 1 + Math.floor(random() * lastDay);
-      const date = new Date(y, m - 1, day, 9 + Math.floor(random() * 9), Math.floor(random() * 60)).toISOString();
-      const attendanceId = `demo-${month}-${i}`;
-      attendances.push(newAttendance(procedure, attendanceId, isoDay(y, m, day), 'realizado'));
-      // Algumas realizações gastam bem mais que a ficha (para a detecção de anomalias encontrar)
-      const factor = random() < 0.04 ? 1.45 + random() * 0.2 : 0.95 + random() * 0.12;
-      procedureStockItems(procedure, insumosMap, 1).forEach((item) => {
-        movements.push({
-          id: `demo-${++seq}`,
-          insumo_id: item.insumoId,
-          tipo: 'consumo',
-          quantidade: -item.quantity * factor,
-          custo_unitario: insumosMap.get(item.insumoId)?.costPerUnit ?? 0,
-          procedure_id: procedure.id,
-          procedure_name: procedure.name,
-          atendimento_id: attendanceId,
-          created_at: date,
-        });
-      });
-    }
-
-    // Uma ou duas perdas por mês (vencimento ou quebra)
-    const losses = 1 + Math.floor(random() * 2);
-    for (let i = 0; i < losses; i++) {
-      const ids = [...insumosMap.keys()];
-      const insumo = insumosMap.get(ids[Math.floor(random() * ids.length)]);
-      movements.push({
-        id: `demo-${++seq}`,
-        insumo_id: insumo.id,
-        tipo: 'perda',
-        quantidade: -(2 + Math.floor(random() * 10)),
-        custo_unitario: insumo.costPerUnit,
-        created_at: new Date(y, m - 1, Math.min(lastDay, 5 + i * 10)).toISOString(),
-      });
-    }
-  });
-
-  // Agenda: o resto deste mês e o mês que vem
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  for (let day = today.getDate() + 1; day <= daysInMonth; day += 2) {
-    const procedure = usable[Math.floor(random() * usable.length)];
-    attendances.push(newAttendance(procedure, `demo-ag-${++seq}`, isoDay(today.getFullYear(), today.getMonth() + 1, day), 'agendado'));
-  }
-  const next = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  const nextDays = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-  for (let i = 0; i < 28; i++) {
-    const procedure = usable[Math.floor(random() * usable.length)];
-    const day = 1 + Math.floor(random() * nextDays);
-    attendances.push(newAttendance(procedure, `demo-ag-${++seq}`, isoDay(next.getFullYear(), next.getMonth() + 1, day), 'agendado'));
-  }
-
-  return {
-    movements: movements.sort((a, b) => a.created_at.localeCompare(b.created_at)),
-    attendances: attendances.sort((a, b) => a.data_realizacao.localeCompare(b.data_realizacao)),
-  };
 }
