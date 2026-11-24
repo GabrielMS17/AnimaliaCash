@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NumberInput, SectionHeader } from '../components/ui';
+import { NumberInput, SectionHeader, Segmented } from '../components/ui';
 import ConcludeAttendanceModal from '../components/ConcludeAttendanceModal';
+import CostsPanel from '../components/CostsPanel';
 import ForecastChart from '../components/ForecastChart';
 import { cancelAttendance, formatDateBR, todayISO } from '../services/attendanceService';
 import { fetchBcbMdr } from '../services/bcbTaxas';
@@ -9,6 +10,7 @@ import {
   dailyUsage,
   DEFAULT_MIX,
   lastMonths,
+  loadCosts,
   loadData,
   monthKey,
   monthLabel,
@@ -21,6 +23,12 @@ import { formatBRL, formatDecimal } from '../utils/costCalculations';
 import { findAnomalies, forecastAhead, stockoutForecast } from '../utils/forecast';
 
 const EMPTY = [];
+const TABS = [
+  { value: 'resultado', label: 'Resultado' },
+  { value: 'fixos', label: 'Custos fixos' },
+  { value: 'variaveis', label: 'Custos variáveis' },
+  { value: 'taxas', label: 'Taxas' },
+];
 const HISTORY_MONTHS = 13; // 12 meses fechados (treino da previsão) + o mês atual
 const CHART_MONTHS = 6; // meses fechados mostrados no gráfico
 const USAGE_WINDOW_DAYS = 30;
@@ -43,6 +51,8 @@ export default function Resultado() {
   const [lots, setLots] = useState([]);
   const [bcb, setBcb] = useState({ state: 'loading' });
   const [error, setError] = useState('');
+  const [tab, setTab] = useState('resultado');
+  const [notice, setNotice] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [agendaBusy, setAgendaBusy] = useState(null);
   const [agendaMessage, setAgendaMessage] = useState('');
@@ -93,7 +103,7 @@ export default function Resultado() {
   const results = useMemo(() => {
     if (!base) return [];
     return [...months, nextMonth].map((m) => computeMonth({
-      month: m, movements, attendances, fixedCosts: base.fixedCosts, fees, procedures, insumosMap, settings, mix,
+      month: m, movements, attendances, fixedCosts: base.fixedCosts, monthly: base.monthly, fees, procedures, insumosMap, settings, mix,
     }));
   }, [base, months, nextMonth, movements, attendances, fees, procedures, insumosMap, settings, mix]);
 
@@ -153,6 +163,17 @@ export default function Resultado() {
     count: sum.count + row.count.predicted,
   }), { revenue: 0, profit: 0, count: 0 });
 
+  // Depois de mudar um custo, relê só os custos: o lucro atualiza na hora
+  const handleCostsChanged = async (message) => {
+    setNotice(message);
+    try {
+      const costs = await loadCosts();
+      setBase((previous) => ({ ...previous, ...costs }));
+    } catch (costsError) {
+      setError(costsError.message);
+    }
+  };
+
   const stockouts = useMemo(() => {
     const usage = dailyUsage(movements, USAGE_WINDOW_DAYS);
     const stock = summarizeLots(lots);
@@ -178,11 +199,12 @@ export default function Resultado() {
     <>
       <SectionHeader
         title="Resultado do mês"
-        description="Quanto a clínica faturou, gastou e lucrou no mês, com base nos atendimentos registrados e nas baixas do estoque."
+        description="Quanto a clínica faturou, gastou e lucrou no mês, com os custos e as taxas para alterar aqui mesmo."
       />
 
       <div className="filters result-filters">
-        <select aria-label="Mês" value={month} onChange={(event) => setMonth(event.target.value)}>
+        <Segmented label="Parte do resultado" options={TABS} value={tab} onChange={(value) => { setTab(value); setNotice(''); }} />
+        <select aria-label="Mês" value={month} onChange={(event) => { setMonth(event.target.value); setNotice(''); }}>
           {[...months].reverse().map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
         </select>
       </div>
@@ -198,6 +220,7 @@ export default function Resultado() {
         </div>
       )}
       {error && <div className="error-banner" role="alert">{error}</div>}
+      {notice && <p className="saved-text" role="status">✓ {notice}</p>}
       {!base && !error && <p className="empty-text">Carregando os dados do mês…</p>}
 
       {current && (
@@ -214,42 +237,11 @@ export default function Resultado() {
             />
           </div>
 
-          <div className="result-grid">
-            <div className="card">
-              <h2>Demonstrativo de {monthLabel(month)}</h2>
-              <table className="dre">
-                <tbody>
-                  <DreRow
-                    label={current.estimatedRevenueCount === 0
-                      ? 'Receita (valor cobrado nos atendimentos)'
-                      : current.estimatedRevenueCount === current.attendances.length
-                        ? 'Receita (estimada pelo preço dos procedimentos)'
-                        : 'Receita (valor cobrado + estimativas)'}
-                    value={current.revenue}
-                    strong
-                  />
-                  <DreRow label={`− Taxas de pagamento (${pct(current.feePercent)} da receita)`} value={-current.fees} />
-                  <DreRow label="− Insumos consumidos (custo real dos lotes)" value={-current.supplies} />
-                  <DreRow label="− Profissionais terceirizados" value={-current.external} />
-                  <DreRow label="− Comissões" value={-current.commission} />
-                  <DreRow label="= Margem de contribuição" value={current.contribution} strong />
-                  <DreRow label="− Custos fixos" value={-current.fixed} />
-                  <DreRow label="− Perdas do estoque (vencidos, quebras)" value={-current.losses} />
-                  <DreRow label="= Lucro do mês" value={current.profit} strong total />
-                </tbody>
-              </table>
-              {current.breakEven != null && (
-                <p className="muted">
-                  <strong>Ponto de equilíbrio:</strong> com a margem média deste mês, a clínica precisa de{' '}
-                  <strong>{current.breakEven} atendimentos</strong> para pagar a estrutura. Foram {current.count}.
-                </p>
-              )}
-            </div>
-
+          {tab === 'taxas' && (
             <div className="card">
               <h2>Formas de pagamento e taxas</h2>
               <p className="muted">
-                Cada atendimento usa a taxa da forma em que foi pago: a <strong>cadastrada pela clínica</strong> em Custos e Taxas e, se não houver,
+                Cada atendimento usa a taxa da forma em que foi pago: a <strong>cadastrada pela clínica</strong> abaixo e, se não houver,
                 a média nacional do Banco Central{bcb.state === 'ok' ? ` (${bcb.label})` : ''}. O mix estimado só vale para atendimentos sem forma informada.
               </p>
               <div className="table-scroll">
@@ -298,7 +290,7 @@ export default function Resultado() {
               {bcb.state === 'error' && <p className="error-text">Não foi possível consultar o Banco Central: {bcb.message}</p>}
               {duplicateFees.length > 0 && (
                 <p className="warning">
-                  Taxas repetidas em Custos e Taxas:{' '}
+                  Taxas repetidas:{' '}
                   {duplicateFees.map((dup) => `${dup.label} / ${dup.brand} (${dup.values.map((v) => pct(v)).join(' e ')})`).join('; ')}.
                   Usamos a média, mas o certo é deixar só uma por bandeira.
                 </p>
@@ -312,6 +304,57 @@ export default function Resultado() {
                 <p className="warning">Em vermelho: taxas da clínica acima da média nacional. Vale renegociar com a maquininha.</p>
               )}
             </div>
+          )}
+
+          {tab !== 'resultado' && (
+            <CostsPanel
+              tab={tab}
+              month={month}
+              base={base}
+              current={current}
+              procedures={procedures}
+              insumosMap={insumosMap}
+              settings={settings}
+              bcb={bcb}
+              onChanged={handleCostsChanged}
+            />
+          )}
+
+          {tab === 'resultado' && (
+          <>
+          <div>
+            <div className="card">
+              <h2>Demonstrativo de {monthLabel(month)}</h2>
+              <table className="dre">
+                <tbody>
+                  <DreRow
+                    label={current.estimatedRevenueCount === 0
+                      ? 'Receita (valor cobrado nos atendimentos)'
+                      : current.estimatedRevenueCount === current.attendances.length
+                        ? 'Receita (estimada pelo preço dos procedimentos)'
+                        : 'Receita (valor cobrado + estimativas)'}
+                    value={current.revenue}
+                    strong
+                  />
+                  <DreRow label={`− Taxas de pagamento (${pct(current.feePercent)} da receita)`} value={-current.fees} onEdit={() => setTab('taxas')} />
+                  <DreRow label="− Insumos consumidos (custo real dos lotes)" value={-current.supplies} />
+                  <DreRow label="− Profissionais terceirizados" value={-current.external} />
+                  <DreRow label="− Comissões" value={-current.commission} />
+                  <DreRow label="− Custos variáveis extras" value={-current.extras} onEdit={() => setTab('variaveis')} />
+                  <DreRow label="= Margem de contribuição" value={current.contribution} strong />
+                  <DreRow label="− Custos fixos" value={-current.fixed} onEdit={() => setTab('fixos')} />
+                  <DreRow label="− Perdas do estoque (vencidos, quebras)" value={-current.losses} />
+                  <DreRow label="= Lucro do mês" value={current.profit} strong total />
+                </tbody>
+              </table>
+              {current.breakEven != null && (
+                <p className="muted">
+                  <strong>Ponto de equilíbrio:</strong> com a margem média deste mês, a clínica precisa de{' '}
+                  <strong>{current.breakEven} atendimentos</strong> para pagar a estrutura. Foram {current.count}.
+                </p>
+              )}
+            </div>
+
           </div>
 
           <div className="card ml-card">
@@ -510,6 +553,8 @@ export default function Resultado() {
               </table>
             </div>
           )}
+          </>
+          )}
         </>
       )}
 
@@ -547,11 +592,14 @@ function Kpi({ label, value, hint, tone }) {
   );
 }
 
-function DreRow({ label, value, strong, total }) {
+function DreRow({ label, value, strong, total, onEdit }) {
   return (
     <tr className={`${strong ? 'strong' : ''} ${total ? 'total' : ''}`}>
-      <td>{label}</td>
-      <td className={`right ${value < 0 ? 'danger-text' : ''}`}>{formatBRL(value)}</td>
+      <td>
+        {label}
+        {onEdit && <button type="button" className="btn btn-ghost btn-small dre-edit" onClick={onEdit}>Alterar</button>}
+      </td>
+      <td className={`right ${value < 0 ? 'danger-text' : ''}`}>{formatBRL(value || 0)}</td>
     </tr>
   );
 }

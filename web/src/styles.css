@@ -661,3 +661,9 @@ td strong { color: var(--navy); }
 .forecast-table td small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
 .forecast-table .current-row td { background: #fafaf9; color: var(--muted); }
 .forecast-table .current-row td strong { color: var(--muted); }
+
+/* Custos dentro do Resultado do mês */
+.costs-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.costs-head h2 { margin: 0; }
+.costs-metrics { margin-bottom: 14px; }
+.dre-edit { margin-left: 6px; padding: 0 6px; }

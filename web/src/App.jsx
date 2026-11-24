@@ -5,7 +5,6 @@ import Banho from './pages/BanhoTosa';
 import Cadastros from './pages/Cadastros';
 import Cirurgia from './pages/Cirurgia';
 import Configuracoes from './pages/Configuracoes';
-import Custos from './pages/Custos';
 import Estoque from './pages/Estoque';
 import Internacao from './pages/Internacao';
 import Login from './pages/Login';
@@ -53,7 +52,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
           <Route path="/cadastros" element={<Cadastros />} />
-          <Route path="/custos" element={<Custos />} />
+          <Route path="/custos" element={<Navigate to="/resultado" replace />} />
           <Route path="/estoque" element={<Estoque />} />
           <Route path="/resultado" element={<Resultado />} />
           <Route path="/atendimentos" element={<Atendimentos />} />
