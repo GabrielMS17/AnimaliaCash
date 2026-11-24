@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NON_STOCK_UNITS } from '../services/stockService';
+import { expiredLotQuestion, maskDateBR, NON_STOCK_UNITS, parseDateBR } from '../services/stockService';
 import { formatBRL, formatDecimal, formatUnitCost } from '../utils/costCalculations';
 import { Field, Modal, NumberInput } from './ui';
 
@@ -63,6 +63,8 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
   const [notes, setNotes] = useState(insumo?.notes ?? '');
   const [brand, setBrand] = useState(insumo?.brand ?? '');
   const [minStock, setMinStock] = useState(insumo?.minStock ?? 0);
+  const [initialQuantity, setInitialQuantity] = useState(0);
+  const [initialExpiry, setInitialExpiry] = useState('');
   // Sem escolha do usuário, segue a unidade: kWh, minuto, hora e diária não têm estoque
   const [trackChoice, setTrackChoice] = useState(insumo?.trackStock);
   const autoTrack = !NON_STOCK_UNITS.includes(unit);
@@ -90,6 +92,20 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
       return setError('O custo unitário deve ser maior que zero.');
     }
 
+    // Item novo pode já entrar com estoque
+    let initialEntry = null;
+    if (!isEditing && trackStock && initialQuantity > 0) {
+      let expiresAt;
+      try {
+        expiresAt = parseDateBR(initialExpiry);
+      } catch (parseError) {
+        return setError(parseError.message);
+      }
+      const question = expiredLotQuestion(expiresAt, `${formatDecimal(initialQuantity, 3)} ${unit}`);
+      if (question && !(window.confirm(question))) return undefined;
+      initialEntry = { quantity: initialQuantity, expiresAt, totalCost: Number((initialQuantity * costPerUnit).toFixed(2)) };
+    }
+
     return onSave({
       id: insumo?.id ?? `ins_${Date.now()}`,
       name: cleanName,
@@ -103,7 +119,7 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
       brand: cleanBrand || undefined,
       minStock: trackStock && minStock > 0 ? minStock : undefined,
       trackStock: trackStock === autoTrack ? undefined : trackStock,
-    });
+    }, initialEntry);
   };
 
   const unitSelect = (
@@ -207,6 +223,29 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
           <input type="checkbox" checked={trackStock} onChange={(event) => setTrackChoice(event.target.checked)} />
           Controlar o estoque deste item (desmarque para energia, água da torneira, tempo...)
         </label>
+        {trackStock && !isEditing && (
+          <div className="form-row">
+            <Field label="Quantidade que você já tem (opcional)" hint={`Na unidade de uso (${unit}). Entra como o primeiro lote.`}>
+              <NumberInput min={0} placeholder="0" label="Quantidade que você já tem" value={initialQuantity} onChange={setInitialQuantity} suffix={unit} />
+            </Field>
+            <Field label="Validade (opcional)">
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="DD/MM/AAAA"
+                maxLength={10}
+                value={initialExpiry}
+                onChange={(event) => {
+                  setInitialExpiry(maskDateBR(event.target.value));
+                  setError('');
+                }}
+              />
+            </Field>
+          </div>
+        )}
+        {trackStock && isEditing && (
+          <p className="muted">Para somar quantidade, use o botão “Entrada” do item. Para corrigir um lote, use “Lotes”.</p>
+        )}
         {trackStock && (
           <Field label="Estoque mínimo (opcional)" hint="Abaixo deste saldo o item aparece com alerta de reposição.">
             <NumberInput min={0} placeholder="0" label="Estoque mínimo" value={minStock} onChange={setMinStock} suffix={unit} className="w-small" />

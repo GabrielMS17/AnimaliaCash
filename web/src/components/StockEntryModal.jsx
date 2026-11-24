@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { daysUntil, maskDateBR, parseDateBR, registerEntry } from '../services/stockService';
+import { daysUntil, expiredLotQuestion, maskDateBR, parseDateBR, registerEntry } from '../services/stockService';
 import { formatBRL, formatDecimal, formatUnitCost } from '../utils/costCalculations';
 import { PACKAGE_OPTIONS } from './InsumoModal';
 import { Field, Modal, NumberInput } from './ui';
@@ -57,6 +57,8 @@ export default function StockEntryModal({ insumo: initialInsumo, insumos, flushP
     } catch (parseError) {
       return setError(parseError.message);
     }
+    const question = expiredLotQuestion(expiresAt, `${formatDecimal(quantity, 3)} ${unit}`);
+    if (question && !window.confirm(question)) return undefined;
 
     setSaving(true);
     setError('');

@@ -36,6 +36,13 @@ export function daysUntil(isoDate) {
   return Math.round((target - Date.UTC(ty, tm - 1, td)) / 86400000);
 }
 
+/** Pergunta feita antes de salvar um lote que já venceu; null se a validade está em dia ou vazia. */
+export function expiredLotQuestion(isoDate, quantityLabel) {
+  const days = daysUntil(isoDate);
+  if (days === null || days >= 0) return null;
+  return `A validade ${formatDateBR(isoDate)} já passou. ${quantityLabel} ficarão registrados como vencidos e NÃO entrarão no saldo. Salvar mesmo assim?`;
+}
+
 /** "2026-12-31" vira "31/12/2026". Data e hora (ex: created_at) são mostradas no fuso do aparelho. */
 export function formatDateBR(isoDate) {
   if (!isoDate) return '';
