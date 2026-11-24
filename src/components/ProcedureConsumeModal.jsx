@@ -5,7 +5,7 @@ import { fetchBcbMdr } from '../services/bcbTaxas';
 import { PAYMENT_FORMS, resolveFees } from '../services/monthlyResult';
 import { fetchLots, formatDateBR, isStockTracked, maskDateBR, parseDateBR, procedureStockItems, summarizeLots } from '../services/stockService';
 import { supabase } from '../supabase';
-import { calculateProcedure, formatBRL, formatDecimal } from '../utils/costCalculations';
+import { calculateCommission, calculateProcedure, formatBRL, formatDecimal } from '../utils/costCalculations';
 import StockItemsEditor, { describeAdjustments, expectedMap, itemsToConsume } from './StockItemsEditor';
 import { AppModal, Button, COLORS, ErrorBanner, Field, Input, NumberInput, Segmented, Select } from './ui';
 
@@ -98,6 +98,13 @@ export default function ProcedureConsumeModal({
   const formKey = PAYMENT_FORMS.find((item) => item.forma === form)?.key;
   const fee = formKey ? fees[formKey] : null;
   const feePercent = fee && fee.source !== 'sem taxa' ? fee.used : null;
+
+  // Comissão do profissional sobre o valor cobrado neste atendimento
+  const commissionBreakdown = procedure ? calculateProcedure(procedure, insumosMap, settings).breakdown : undefined;
+  const commission = calculateCommission(commissionBreakdown, value, times);
+  const commissionDetail = commissionBreakdown?.vetCommissionFixed > 0
+    ? `valor fixo de ${formatBRL(commissionBreakdown.vetCommissionFixed)}${times > 1 ? ` × ${times}` : ''}`
+    : `${formatDecimal(commissionBreakdown?.vetCommissionPercent ?? 0)}% de ${formatBRL(value)}`;
 
   const toConsume = itemsToConsume(items);
   const adjustments = procedure ? describeAdjustments(toConsume, expected, insumosMap) : '';
@@ -213,7 +220,7 @@ export default function ProcedureConsumeModal({
         <Field label="Quantas vezes" style={{ width: 120 }}>
           <NumberInput min={1} value={times} onChange={changeTimes} />
         </Field>
-        <Field label="Valor cobrado" hint={`Preço da ficha: ${formatBRL(unitPrice)}${times > 1 ? ` × ${times}` : ''}`} style={{ flex: 1, minWidth: 170 }}>
+        <Field label="Valor cobrado" hint={`${procedure.suggestedPrice > 0 ? 'Preço da ficha' : 'Preço sugerido'}: ${formatBRL(unitPrice)}${times > 1 ? ` × ${times}` : ''}`} style={{ flex: 1, minWidth: 170 }}>
           <NumberInput min={0} prefix="R$" value={value} onChange={(next) => { setValueTouched(true); setValue(next); }} />
         </Field>
       </View>
@@ -224,6 +231,14 @@ export default function ProcedureConsumeModal({
       >
         <Select value={form} options={FORM_OPTIONS} onChange={setForm} />
       </Field>
+
+      <View style={styles.commission}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.commissionLabel}>Comissão do profissional{procedure.vetCommissionRole ? ` (${procedure.vetCommissionRole})` : ''}</Text>
+          <Text style={styles.note}>{commissionDetail}</Text>
+        </View>
+        <Text style={styles.commissionValue}>{formatBRL(commission)}</Text>
+      </View>
 
       <View style={styles.inline}>
         <Field label="Paciente (opcional)" style={{ flex: 1, minWidth: 180 }}>
@@ -274,6 +289,9 @@ export default function ProcedureConsumeModal({
 const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' },
   inline: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  commission: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 8, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border },
+  commissionLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textSoft },
+  commissionValue: { fontSize: 17, fontWeight: '700', color: COLORS.text },
   itemsHead: { gap: 4 },
   itemsTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   dangerText: { fontSize: 13, color: COLORS.danger },

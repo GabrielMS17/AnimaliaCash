@@ -5,7 +5,6 @@ import {
   computeMonth,
   dailyUsage,
   DEFAULT_MIX,
-  generateDemoData,
   lastMonths,
   loadData,
   monthKey,
@@ -18,12 +17,9 @@ import { useAnimaliaData } from '../store/AnimaliaDataContext';
 import { formatBRL, formatDecimal } from '../utils/costCalculations';
 import { findAnomalies, forecastAhead, stockoutForecast } from '../utils/forecast';
 import ForecastChart from './ForecastChart';
-import { COLORS, ErrorBanner, NumberInput, SectionHeader, Segmented, Select, useIsWide } from './ui';
+import { COLORS, ErrorBanner, NumberInput, SectionHeader, Select, useIsWide } from './ui';
 
-const MODES = [
-  { value: 'real', label: 'Dados reais' },
-  { value: 'demo', label: 'Demonstração (6 meses simulados)' },
-];
+const EMPTY = [];
 const HISTORY_MONTHS = 7; // 6 meses fechados + o mês atual
 const USAGE_WINDOW_DAYS = 30;
 const FORECAST_OFFSETS = [1, 2, 3, 4]; // mês atual (em andamento) + 3 meses à frente
@@ -46,7 +42,6 @@ export default function ResultPage() {
   const { procedures, insumos, insumosMap, settings } = useAnimaliaData();
   const isWide = useIsWide(900);
   const months = useMemo(() => lastMonths(HISTORY_MONTHS), []);
-  const [mode, setMode] = useState('real');
   const [month, setMonth] = useState(months[months.length - 1]);
   const [mix, setMix] = useState(DEFAULT_MIX);
   const [base, setBase] = useState(null);
@@ -75,13 +70,10 @@ export default function ResultPage() {
     };
   }, [months]);
 
-  const source = useMemo(() => {
-    if (!base) return { movements: [], attendances: [] };
-    if (mode === 'demo') return generateDemoData({ procedures, insumosMap, settings, months });
-    return { movements: base.movements, attendances: base.attendances };
-  }, [base, mode, procedures, insumosMap, settings, months]);
-  const { movements, attendances } = source;
-  const tableMissing = mode === 'real' && base && base.attendances === null;
+  // attendances = null quando a tabela de atendimentos ainda não existe no banco
+  const movements = base ? base.movements : EMPTY;
+  const attendances = base ? base.attendances : EMPTY;
+  const tableMissing = base && base.attendances === null;
 
   const fees = useMemo(() => resolveFees(base?.fees ?? [], bcb.state === 'ok' ? bcb.rates : null), [base, bcb]);
   const duplicateFees = PAYMENT_FORMS.flatMap(({ key, label }) => fees[key].duplicates.map((dup) => ({ label, ...dup })));
@@ -157,17 +149,13 @@ export default function ResultPage() {
       />
 
       <View style={styles.filters}>
-        <Segmented options={MODES} value={mode} onChange={setMode} />
         <Select value={month} options={monthOptions} onChange={setMonth} style={{ maxWidth: 260 }} />
       </View>
 
-      {mode === 'demo' && (
-        <Notice>Modo demonstração: 6 meses de atendimentos simulados só nesta tela, usando as fichas e preços reais da clínica. Nada é gravado no banco.</Notice>
-      )}
       {tableMissing && (
         <Notice>A tabela de atendimentos ainda não existe no banco (falta rodar supabase/atendimentos.sql). Por enquanto a receita é estimada pelo preço da ficha.</Notice>
       )}
-      {mode === 'real' && !tableMissing && current && (current.legacyCount > 0 || current.estimatedRevenueCount > 0) && (
+      {!tableMissing && current && (current.legacyCount > 0 || current.estimatedRevenueCount > 0) && (
         <Notice>
           Neste mês, {current.estimatedRevenueCount} atendimento(s) estão com a receita estimada pelo preço da ficha
           {current.legacyCount > 0 ? ` (${current.legacyCount} são baixas de estoque antigas, de antes do registro com data e valor)` : ' (valor cobrado não informado)'}.
@@ -312,7 +300,7 @@ export default function ResultPage() {
                 </View>
               </>
             ) : (
-              <Text style={styles.muted}>A previsão precisa de pelo menos 3 meses fechados com atendimentos. Use o modo Demonstração para ver como ela funciona.</Text>
+              <Text style={styles.muted}>A previsão precisa de pelo menos 3 meses fechados com atendimentos.</Text>
             )}
             {current.month === months[months.length - 1] && current.scheduled.count > 0 && (
               <Text style={styles.scheduledLine}>

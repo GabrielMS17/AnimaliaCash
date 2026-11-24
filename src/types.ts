@@ -108,11 +108,11 @@ export interface CalculationBreakdown {
   directCost: number; // Custo direto de insumos e materiais
   insumosCost: number; // Materiais (gaze, luvas, fios, etc.)
   externalProfessionalCost: number;
-  vetCommissionCost: number; // Comissão do médico veterinário responsável
+  vetCommissionCost: number; // Comissão estimada pelo preço da ficha (ou preço sugerido)
   vetCommissionPercent: number; // % sobre o preço cobrado (0 quando a comissão é fixa)
   vetCommissionFixed: number; // Valor fixo por procedimento (0 quando é percentual)
   operationalCost: number; // Mão de obra / Centro cirúrgico por minuto
-  totalCost: number; // Insumos + profissionais terceirizados + comissão + operacional
+  totalCost: number; // Insumos + profissionais terceirizados + operacional (a comissão entra no atendimento)
   suggestedPriceByMargin?: number;
   currentPrice?: number;
   profitAtCurrentPrice?: number;

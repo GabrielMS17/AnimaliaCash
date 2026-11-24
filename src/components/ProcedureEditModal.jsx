@@ -520,7 +520,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
 
             <Field
               label="Preço cobrado do tutor (opcional)"
-              hint={`A comissão percentual é calculada sobre este preço. Sem preço, usa o preço sugerido pela margem: ${formatBRL(breakdown.suggestedPriceByMargin)}.`}
+              hint={`Já vem preenchido ao registrar o atendimento, onde pode ser mudado. Sem preço, usa o sugerido pela margem: ${formatBRL(breakdown.suggestedPriceByMargin)}.`}
             >
               <NumberInput prefix="R$" min={0} placeholder="0,00" value={price} onChange={setPrice} />
             </Field>
@@ -533,12 +533,16 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
               {breakdown.externalProfessionalCost > 0 && (
                 <SummaryRow label="Profissionais terceirizados" value={breakdown.externalProfessionalCost} />
               )}
-              <SummaryRow label="Comissão" value={breakdown.vetCommissionCost} />
               <SummaryRow label="Operacional" value={breakdown.operationalCost} />
               <View style={styles.summaryTotal}>
                 <Text style={styles.heading}>Total</Text>
                 <Text style={styles.heading}>{formatBRL(breakdown.totalCost)}</Text>
               </View>
+              <Text style={[styles.small, { marginTop: 10 }]}>
+                {breakdown.vetCommissionFixed > 0
+                  ? `Comissão de ${formatBRL(breakdown.vetCommissionFixed)}`
+                  : `Comissão de ${formatDecimal(breakdown.vetCommissionPercent)}% do valor cobrado`}: calculada ao registrar o atendimento.
+              </Text>
               <Text style={[styles.small, { marginTop: 10 }]}>
                 Operacional: {category === 'internacao' ? 'tempo de atendimento' : 'duração'} × {formatBRL(settings.hourlyOperationalRate)}/h da clínica.
               </Text>

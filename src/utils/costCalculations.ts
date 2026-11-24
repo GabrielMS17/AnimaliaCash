@@ -206,11 +206,12 @@ export function calculateProcedure(
   const commissionBase = procedure.suggestedPrice && procedure.suggestedPrice > 0 ? procedure.suggestedPrice : suggestedPriceByMargin;
   const vetCommissionCost = hasFixedCommission ? vetCommissionFixed : (commissionBase * vetCommissionPercent) / 100;
 
-  // Custo Total da Clínica: insumos, equipe terceirizada, comissão e custo operacional.
-  const totalCost = baseCost + vetCommissionCost;
+  // Custo da ficha: insumos, equipe terceirizada e custo operacional. A comissão fica fora, porque depende
+  // do valor cobrado e é calculada ao registrar o atendimento (o preço sugerido já reserva espaço para ela).
+  const totalCost = baseCost;
 
   const currentPrice = procedure.suggestedPrice || totalCost;
-  const profitAtCurrentPrice = currentPrice - totalCost;
+  const profitAtCurrentPrice = procedure.suggestedPrice ? currentPrice - totalCost - vetCommissionCost : 0;
   const marginAtCurrentPrice = currentPrice > 0 ? (profitAtCurrentPrice / currentPrice) * 100 : 0;
 
   return {
@@ -233,6 +234,16 @@ export function calculateProcedure(
     itemDetails,
     itemsCount: itemDetails.length,
   };
+}
+
+/** Comissão de um atendimento: percentual sobre o valor cobrado, ou valor fixo por realização. */
+export function calculateCommission(
+  breakdown: Pick<CalculationBreakdown, 'vetCommissionPercent' | 'vetCommissionFixed'> | undefined,
+  amount: number,
+  times: number = 1,
+): number {
+  if (!breakdown) return 0;
+  return (amount * breakdown.vetCommissionPercent) / 100 + breakdown.vetCommissionFixed * times;
 }
 
 /** Margem de lucro desejada no procedimento (%). */
