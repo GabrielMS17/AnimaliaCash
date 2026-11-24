@@ -8,7 +8,7 @@ import { Field, Modal, NumberInput } from './ui';
  * Entrada de uma compra no estoque. A compra é informada como vem da nota:
  * ex: 3 caixas com 10 ampolas cada, R$ 45,00 por caixa = 30 ampolas a R$ 4,50.
  */
-export default function StockEntryModal({ insumo: initialInsumo, insumos, flushPending, onUpdateInsumo, onClose, onSaved }) {
+export default function StockEntryModal({ insumo: initialInsumo, insumos, flushPending, onUpdateInsumo, onNewItem, onClose, onSaved }) {
   const [insumoId, setInsumoId] = useState(initialInsumo?.id ?? '');
   const insumo = insumos.find((item) => item.id === insumoId) ?? initialInsumo ?? null;
 
@@ -94,7 +94,7 @@ export default function StockEntryModal({ insumo: initialInsumo, insumos, flushP
 
   return (
     <Modal
-      title="Entrada de compra"
+      title={initialInsumo ? 'Entrada de compra' : 'Adicionar ao estoque'}
       subtitle="Informe a compra como ela vem na nota: quantas embalagens e quanto vem em cada uma."
       onClose={onClose}
       onSubmit={handleSave}
@@ -119,6 +119,11 @@ export default function StockEntryModal({ insumo: initialInsumo, insumos, flushP
           </select>
         )}
       </Field>
+      {!initialInsumo && onNewItem && (
+        <div>
+          <button type="button" className="btn btn-secondary btn-small" onClick={onNewItem}>+ O item ainda não existe: cadastrar</button>
+        </div>
+      )}
 
       <div className="form-row">
         <Field label="Embalagem">

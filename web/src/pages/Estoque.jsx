@@ -21,6 +21,7 @@ export default function Estoque() {
   const [lots, setLots] = useState([]);
   const [loadingLots, setLoadingLots] = useState(true);
   const [lotsError, setLotsError] = useState('');
+  const [notice, setNotice] = useState('');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('todos');
   const [status, setStatus] = useState('todos');
@@ -94,27 +95,24 @@ export default function Estoque() {
       .sort((a, b) => a.insumo.name.localeCompare(b.insumo.name, 'pt-BR'));
   }, [rows, search, category, status]);
 
-  // Item novo com quantidade: o cadastro precisa chegar ao banco antes do lote
+  // Cadastro e primeira entrada juntos. O item precisa chegar ao banco antes do lote;
+  // se a entrada falhar, o erro volta para a janela, que continua aberta para tentar de novo.
   const saveItem = async (saved, initialEntry) => {
     saveInsumo(saved);
-    setEditing(null);
-    if (!initialEntry) return;
-    await new Promise((resolve) => setTimeout(resolve, 100)); // deixa o estado novo chegar à fila de sincronização
-    try {
+    if (initialEntry) {
+      await new Promise((resolve) => setTimeout(resolve, 100)); // deixa o estado novo chegar à fila de sincronização
       await flushPending();
-      await registerEntry({
-        insumoId: saved.id,
-        packages: initialEntry.quantity,
-        unitsPerPackage: 1,
-        totalCost: initialEntry.totalCost,
-        packageType: 'unidade',
-        expiresAt: initialEntry.expiresAt,
-        notes: 'Estoque inicial',
-      });
+      try {
+        await registerEntry({ insumoId: saved.id, ...initialEntry });
+      } catch (error) {
+        throw new Error(`O item foi cadastrado, mas o estoque não entrou: ${error.message.replace(/\.?$/, '.')} Salve de novo para tentar a entrada outra vez.`);
+      }
       await loadLots();
-    } catch (error) {
-      setLotsError(`"${saved.name}" foi cadastrado, mas a quantidade inicial não entrou: ${error.message} Use o botão “Entrada” do item.`);
+      setNotice(`${saved.name}: cadastrado com ${formatDecimal(initialEntry.packages * initialEntry.unitsPerPackage, 3)} ${saved.unit}.`);
+    } else {
+      setNotice('');
     }
+    setEditing(null);
   };
 
   const handleDelete = (insumo) => {
@@ -138,10 +136,7 @@ export default function Estoque() {
         title="Estoque"
         description="Itens usados nos procedimentos, com custo, saldo por lote e validade. Alterar um custo recalcula os procedimentos; realizar um procedimento baixa os itens do estoque."
         action={(
-          <div className="inline">
-            <button type="button" className="btn btn-primary" onClick={() => setEntryFor({})}>+ Entrada de compra</button>
-            <button type="button" className="btn btn-secondary" onClick={() => setEditing({})}>+ Novo item</button>
-          </div>
+          <button type="button" className="btn btn-primary" onClick={() => setEntryFor({})}>+ Adicionar ao estoque</button>
         )}
       />
 
@@ -153,6 +148,7 @@ export default function Estoque() {
       </div>
 
       {lotsError && <div className="error-banner" role="alert">{lotsError}</div>}
+      {notice && <p className="saved-text" role="status">✓ {notice}</p>}
 
       <div className="filters stock-filters">
         <div className="stock-filter-groups">
@@ -193,8 +189,13 @@ export default function Estoque() {
           insumos={insumos.filter(isStockTracked)}
           flushPending={flushPending}
           onUpdateInsumo={saveInsumo}
+          onNewItem={() => {
+            setEntryFor(null);
+            setEditing({});
+          }}
           onClose={() => setEntryFor(null)}
           onSaved={() => {
+            setNotice('');
             setEntryFor(null);
             loadLots();
           }}
