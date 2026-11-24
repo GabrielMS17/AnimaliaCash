@@ -37,26 +37,7 @@ function diagnose(totalFixed, averageFee, hasProcedures) {
 }
 
 export default function Custos() {
-  const { procedures, insumosMap, settings, saveProcedure, saveSettings } = useData();
-  // Taxa média de desperdício: só informativa, guardada nas configurações da clínica (igual ao app)
-  const savedWasteRate = settings.averageProductWastePercent ?? 0;
-  const [wasteRate, setWasteRate] = useState(savedWasteRate);
-  const [wasteRateFor, setWasteRateFor] = useState(savedWasteRate);
-  const [wasteMessage, setWasteMessage] = useState('');
-  if (wasteRateFor !== savedWasteRate) {
-    // Valor mudou fora daqui (ex: baixado do Supabase): acompanha
-    setWasteRateFor(savedWasteRate);
-    setWasteRate(savedWasteRate);
-  }
-  const wasteRateChanged = wasteRate !== savedWasteRate;
-  const saveWasteRate = () => {
-    if (!Number.isFinite(wasteRate) || wasteRate < 0) {
-      setWasteMessage('Informe uma taxa média de desperdício válida.');
-      return;
-    }
-    saveSettings({ ...settings, averageProductWastePercent: wasteRate });
-    setWasteMessage('Taxa média de desperdício salva como referência. Ela não altera os custos calculados.');
-  };
+  const { procedures, insumosMap, settings, saveProcedure } = useData();
   const [tab, setTab] = useState('custos');
   const [custosFixos, setCustosFixos] = useState([]);
   const [taxas, setTaxas] = useState([]);
@@ -271,13 +252,6 @@ export default function Custos() {
       ) : tab === 'variaveis' ? (
         <div className="card table-card">
           <h2>Custos Variáveis por Categoria</h2>
-          <div className="waste-rate">
-            <Field label="Taxa média de desperdício dos produtos (%)" hint="Valor informativo; não altera automaticamente os custos calculados.">
-              <NumberInput min={0} label="Taxa média de desperdício" value={wasteRate} onChange={(value) => { setWasteRate(value); setWasteMessage(''); }} suffix="%" className="w-small" />
-            </Field>
-            <button type="button" className="btn btn-primary" disabled={!wasteRateChanged} onClick={saveWasteRate}>Salvar taxa média</button>
-            {wasteMessage && <p className={wasteMessage.startsWith('Informe') ? 'error-text' : 'saved-text'} role="status">{wasteMessage}</p>}
-          </div>
           <p className="muted-text">Clique em uma categoria para ver os itens detalhados.</p>
           <div className="table-scroll">
             <table className="stack-mobile">

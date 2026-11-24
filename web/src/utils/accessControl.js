@@ -15,7 +15,7 @@ export const ADMINISTRATOR_ALLOWED_ROUTES = [
   '/custos',
   '/estoque',
   '/resultado',
-  '/templates',
+  // '/templates', // tela desativada por enquanto; basta descomentar para voltar
 ];
 
 export const ANIMAL_GROOMER_ALLOWED_ROUTES = ['/atendimentos', '/banho-tosa'];

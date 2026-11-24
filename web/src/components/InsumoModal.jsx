@@ -54,8 +54,8 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
   const [name, setName] = useState(insumo?.name ?? '');
   const [category, setCategory] = useState(insumo?.category ?? 'geral');
   const [unit, setUnit] = useState(insumo?.unit ?? 'un');
-  // Novo insumo começa pela compra em embalagem; existente sem embalagem abre no custo direto
-  const [directCost, setDirectCost] = useState(isEditing && !hasPackage);
+  // Cadastro é sempre por embalagem; itens antigos sem embalagem (ex: energia) seguem com o custo por unidade
+  const directCost = isEditing && !hasPackage;
   const [packageType, setPackageType] = useState(insumo?.packageType ?? 'caixa');
   const [packagePrice, setPackagePrice] = useState(insumo?.packagePrice ?? 0);
   const [packageSize, setPackageSize] = useState(insumo?.packageSize ?? 0);
@@ -64,16 +64,14 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
   const [brand, setBrand] = useState(insumo?.brand ?? '');
   const [minStock, setMinStock] = useState(insumo?.minStock ?? 0);
   const [entryPackages, setEntryPackages] = useState(1);
-  const [entryQuantity, setEntryQuantity] = useState(0);
   const [entryLot, setEntryLot] = useState('');
   const [initialExpiry, setInitialExpiry] = useState('');
   const [saving, setSaving] = useState(false);
   // O mesmo id em uma nova tentativa: se a entrada falhar, salvar de novo não duplica o item
   const [itemId] = useState(() => insumo?.id ?? `ins_${Date.now()}`);
-  // Sem escolha do usuário, segue a unidade: kWh, minuto, hora e diária não têm estoque
-  const [trackChoice, setTrackChoice] = useState(insumo?.trackStock);
+  // kWh, minuto, hora e diária não têm estoque; os demais têm
   const autoTrack = !NON_STOCK_UNITS.includes(unit);
-  const trackStock = trackChoice ?? autoTrack;
+  const trackStock = insumo?.trackStock ?? autoTrack;
   const [error, setError] = useState('');
 
   const packageLabel = PACKAGE_OPTIONS.find((option) => option.value === packageType)?.label.toLowerCase() ?? 'embalagem';
@@ -81,9 +79,9 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
   const ofThe = isMasculine ? 'do' : 'da';
   const inThe = isMasculine ? 'no' : 'na';
   const costPerUnit = directCost ? manualCost : packagePrice > 0 && packageSize > 0 ? packagePrice / packageSize : 0;
-  // Primeira entrada (só no cadastro): em embalagens ou, no custo direto, na própria unidade
-  const entryUnits = directCost ? entryQuantity : entryPackages * packageSize;
-  const entryTotal = directCost ? entryQuantity * manualCost : entryPackages * packagePrice;
+  // Primeira entrada (só no cadastro)
+  const entryUnits = entryPackages * packageSize;
+  const entryTotal = entryPackages * packagePrice;
 
   const handleSave = async () => {
     const cleanName = name.trim();
@@ -112,9 +110,9 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
       const question = expiredLotQuestion(expiresAt, `${formatDecimal(entryUnits, 3)} ${unit}`);
       if (question && !(window.confirm(question))) return undefined;
       initialEntry = {
-        packages: directCost ? entryQuantity : entryPackages,
-        unitsPerPackage: directCost ? 1 : packageSize,
-        packageType: directCost ? 'unidade' : packageType,
+        packages: entryPackages,
+        unitsPerPackage: packageSize,
+        packageType,
         totalCost: Number(entryTotal.toFixed(2)),
         lotNumber: entryLot.trim(),
         expiresAt,
@@ -230,73 +228,49 @@ export default function InsumoModal({ insumo, onClose, onSave }) {
         </section>
       )}
 
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={directCost}
-          onChange={(event) => {
-            // Ao trocar para custo direto, parte do valor que a embalagem calculava
-            if (event.target.checked && costPerUnit > 0) setManualCost(Number(costPerUnit.toFixed(4)));
-            setDirectCost(event.target.checked);
-            setError('');
-          }}
-        />
-        Informar custo unitário direto (sem embalagem, ex: kWh, diária)
-      </label>
-
-      <section className="form-group">
-        <h3>Estoque</h3>
-        <label className="checkbox">
-          <input type="checkbox" checked={trackStock} onChange={(event) => setTrackChoice(event.target.checked)} />
-          Controlar o estoque deste item (desmarque para energia, água da torneira, tempo...)
-        </label>
-        {trackStock && !isEditing && (
-          <>
-            <div className="form-row">
-              {directCost ? (
-                <Field label="Quantidade que está entrando" hint="Deixe 0 para só cadastrar o item.">
-                  <NumberInput min={0} placeholder="0" label="Quantidade que está entrando" value={entryQuantity} onChange={setEntryQuantity} suffix={unit} />
-                </Field>
-              ) : (
+      {trackStock && (
+        <section className="form-group">
+          <h3>Estoque</h3>
+          {!isEditing && (
+            <>
+              <div className="form-row">
                 <Field label="Embalagens entrando" hint="Deixe 0 para só cadastrar o item.">
-                  <NumberInput min={0} placeholder="Ex: 3" label="Quantidade de embalagens entrando" value={entryPackages} onChange={setEntryPackages} />
+                  <NumberInput min={0} placeholder="Ex: 3" label="Embalagens entrando" value={entryPackages} onChange={setEntryPackages} />
                 </Field>
-              )}
-              <Field label="Número do lote (opcional)">
-                <input type="text" placeholder="Ex: L2026-045" value={entryLot} onChange={(event) => setEntryLot(event.target.value.toUpperCase())} />
-              </Field>
-              <Field label="Validade (opcional)">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="DD/MM/AAAA"
-                  maxLength={10}
-                  value={initialExpiry}
-                  onChange={(event) => {
-                    setInitialExpiry(maskDateBR(event.target.value));
-                    setError('');
-                  }}
-                />
-              </Field>
-            </div>
-            <div className="cost-box">
-              <div>
-                <span>Entra no estoque</span>
-                <small>{directCost ? '' : `${formatDecimal(entryPackages, 3)} × ${formatDecimal(packageSize, 3)} ${unit} · `}total {formatBRL(entryTotal)}</small>
+                <Field label="Número do lote (opcional)">
+                  <input type="text" placeholder="Ex: L2026-045" value={entryLot} onChange={(event) => setEntryLot(event.target.value.toUpperCase())} />
+                </Field>
+                <Field label="Validade (opcional)">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="DD/MM/AAAA"
+                    maxLength={10}
+                    value={initialExpiry}
+                    onChange={(event) => {
+                      setInitialExpiry(maskDateBR(event.target.value));
+                      setError('');
+                    }}
+                  />
+                </Field>
               </div>
-              <strong>{formatDecimal(entryUnits, 3)} {unit}</strong>
-            </div>
-          </>
-        )}
-        {trackStock && isEditing && (
-          <p className="muted">Para somar quantidade, use o botão “Entrada” do item. Para corrigir um lote, use “Lotes”.</p>
-        )}
-        {trackStock && (
+              <div className="cost-box">
+                <div>
+                  <span>Entra no estoque</span>
+                  <small>{formatDecimal(entryPackages, 3)} × {formatDecimal(packageSize, 3)} {unit} · total {formatBRL(entryTotal)}</small>
+                </div>
+                <strong>{formatDecimal(entryUnits, 3)} {unit}</strong>
+              </div>
+            </>
+          )}
+          {isEditing && (
+            <p className="muted">Para somar quantidade, use o botão “Entrada” do item. Para corrigir um lote, use “Lotes”.</p>
+          )}
           <Field label="Estoque mínimo (opcional)" hint="Abaixo deste saldo o item aparece com alerta de reposição.">
             <NumberInput min={0} placeholder="0" label="Estoque mínimo" value={minStock} onChange={setMinStock} suffix={unit} className="w-small" />
           </Field>
-        )}
-      </section>
+        </section>
+      )}
 
       <Field label="Marca / fabricante (opcional)">
         <input type="text" placeholder="Ex: Zoetis, Ourofino" value={brand} onChange={(event) => setBrand(event.target.value)} />
