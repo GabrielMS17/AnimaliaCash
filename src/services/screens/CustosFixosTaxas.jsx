@@ -15,6 +15,9 @@ import { useAnimaliaData } from '../../store/AnimaliaDataContext';
 import { supabase } from '../../supabase';
 import { calculateProcedure } from '../../utils/costCalculations';
 
+// Aba Variáveis desativada por enquanto; basta trocar para true para voltar
+const MOSTRAR_VARIAVEIS = false;
+
 export default function CustosETaxasScreen() {
   const { procedures, insumosMap, settings } = useAnimaliaData();
   
@@ -276,7 +279,7 @@ export default function CustosETaxasScreen() {
         <View style={styles.pageHeader}>
           <Text style={styles.sectionTitle}>Custos e Taxas da Clínica</Text>
           <Text style={styles.sectionSubtitle}>
-            Gerencie custos operacionais fixos, consolidação de variáveis, cálculo de hora/sala e taxas de pagamento.
+            Gerencie custos operacionais fixos, cálculo de hora/sala e taxas de pagamento.
           </Text>
         </View>
 
@@ -330,7 +333,7 @@ export default function CustosETaxasScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Três Abas (Tabs) Estilizadas */}
+        {/* Abas (Tabs) Estilizadas */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tabButton, tab === 'custos' && styles.tabButtonActive]}
@@ -339,12 +342,14 @@ export default function CustosETaxasScreen() {
             <Text style={[styles.tabText, tab === 'custos' && styles.tabTextActive]}>Fixos</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.tabButton, tab === 'variaveis' && styles.tabButtonActive]}
-            onPress={() => setTab('variaveis')}
-          >
-            <Text style={[styles.tabText, tab === 'variaveis' && styles.tabTextActive]}>Variáveis</Text>
-          </TouchableOpacity>
+          {MOSTRAR_VARIAVEIS && (
+            <TouchableOpacity
+              style={[styles.tabButton, tab === 'variaveis' && styles.tabButtonActive]}
+              onPress={() => setTab('variaveis')}
+            >
+              <Text style={[styles.tabText, tab === 'variaveis' && styles.tabTextActive]}>Variáveis</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={[styles.tabButton, tab === 'taxas' && styles.tabButtonActive]}
