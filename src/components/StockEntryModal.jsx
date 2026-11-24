@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { maskDateBR, parseDateBR, registerEntry, daysUntil } from '../services/stockService';
+import { expiredLotQuestion, maskDateBR, parseDateBR, registerEntry, daysUntil } from '../services/stockService';
 import { formatBRL, formatDecimal, formatUnitCost } from '../utils/costCalculations';
 import { PACKAGE_OPTIONS } from './InsumoModal';
-import { AppModal, Button, Checkbox, COLORS, ErrorBanner, Field, Input, NumberInput, Select, useAccent, useIsWide } from './ui';
+import { AppModal, Button, Checkbox, COLORS, confirmAction, ErrorBanner, Field, Input, NumberInput, Select, useAccent, useIsWide } from './ui';
 
 /**
  * Entrada de uma compra no estoque. A compra é informada como vem da nota:
@@ -62,6 +62,8 @@ export default function StockEntryModal({ insumo: initialInsumo, insumos, flushP
     } catch (error) {
       return setErrorMsg(error.message);
     }
+    const question = expiredLotQuestion(expiresAt, `${formatDecimal(quantity, 3)} ${unit}`);
+    if (question && !(await confirmAction(question, 'Salvar mesmo assim'))) return;
 
     setSaving(true);
     setErrorMsg('');

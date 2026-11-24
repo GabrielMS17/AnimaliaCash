@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { NON_STOCK_UNITS } from '../services/stockService';
+import { expiredLotQuestion, maskDateBR, NON_STOCK_UNITS, parseDateBR } from '../services/stockService';
 import { formatBRL, formatDecimal, formatUnitCost } from '../utils/costCalculations';
-import { AppModal, Button, Checkbox, COLORS, ErrorBanner, Field, Input, NumberInput, Select, useAccent, useIsWide } from './ui';
+import { AppModal, Button, Checkbox, COLORS, confirmAction, ErrorBanner, Field, Input, NumberInput, Select, useAccent, useIsWide } from './ui';
 
 export const UNIT_OPTIONS = [
   { value: 'un', label: 'Unidade (un)' },
@@ -66,6 +66,8 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
   const [notes, setNotes] = useState(insumo?.notes ?? '');
   const [brand, setBrand] = useState(insumo?.brand ?? '');
   const [minStock, setMinStock] = useState(insumo?.minStock ?? 0);
+  const [initialQuantity, setInitialQuantity] = useState(0);
+  const [initialExpiry, setInitialExpiry] = useState('');
   // Sem escolha do usuário, segue a unidade: kWh, minuto, hora e diária não têm estoque
   const [trackChoice, setTrackChoice] = useState(insumo?.trackStock);
   const autoTrack = !NON_STOCK_UNITS.includes(unit);
@@ -78,7 +80,7 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
   const inThe = isMasculine ? 'no' : 'na';
   const costPerUnit = directCost ? manualCost : packagePrice > 0 && packageSize > 0 ? packagePrice / packageSize : 0;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // 1. Sanitização e Validação do Nome (Proteção contra strings vazias ou excessivas)
     const sanitizedName = name.trim();
     if (!sanitizedName) {
@@ -116,6 +118,20 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
       return setErrorMsg('A marca deve ter no máximo 80 caracteres.');
     }
 
+    // Item novo pode já entrar com estoque
+    let initialEntry = null;
+    if (!isEditing && trackStock && initialQuantity > 0) {
+      let expiresAt;
+      try {
+        expiresAt = parseDateBR(initialExpiry);
+      } catch (parseError) {
+        return setErrorMsg(parseError.message);
+      }
+      const question = expiredLotQuestion(expiresAt, `${formatDecimal(initialQuantity, 3)} ${unit}`);
+      if (question && !(await confirmAction(question, 'Salvar mesmo assim'))) return undefined;
+      initialEntry = { quantity: initialQuantity, expiresAt, totalCost: Number((initialQuantity * costPerUnit).toFixed(2)) };
+    }
+
     // 4. Envio seguro com dados validados
     onSave({
       id: insumo?.id ?? `ins_${Date.now()}`,
@@ -130,7 +146,8 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
       brand: sanitizedBrand || undefined,
       minStock: trackStock && minStock > 0 ? minStock : undefined,
       trackStock: trackStock === autoTrack ? undefined : trackStock,
-    });
+    }, initialEntry);
+    return undefined;
   };
 
   const row = isWide ? styles.row : styles.column;
@@ -255,6 +272,33 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
           onChange={setTrackChoice}
           label="Controlar o estoque deste item (desmarque para energia, água da torneira, tempo...)"
         />
+        {trackStock && !isEditing && (
+          <View style={row}>
+            <Field
+              label="Quantidade que você já tem (opcional)"
+              hint={`Na unidade de uso (${unit}). Entra como o primeiro lote.`}
+              style={isWide ? styles.fieldWide : undefined}
+            >
+              <NumberInput min={0} placeholder="0" value={initialQuantity} onChange={setInitialQuantity} suffix={unit} />
+            </Field>
+            <Field label="Validade (opcional)" style={isWide ? styles.fieldWide : undefined}>
+              <Input
+                placeholder="DD/MM/AAAA"
+                value={initialExpiry}
+                onChangeText={(text) => {
+                  setInitialExpiry(maskDateBR(text));
+                  setErrorMsg('');
+                }}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={10}
+              />
+            </Field>
+          </View>
+        )}
+        {trackStock && isEditing && (
+          <Text style={styles.muted}>Para somar quantidade, use o botão “Entrada” do item. Para corrigir um lote, use “Lotes”.</Text>
+        )}
         {trackStock && (
           <Field label="Estoque mínimo (opcional)" hint="Abaixo deste saldo o item aparece com alerta de reposição.">
             <NumberInput min={0} placeholder="0" value={minStock} onChange={setMinStock} suffix={unit} style={{ width: 170 }} />

@@ -6,6 +6,7 @@ import {
   fetchLots,
   formatDateBR,
   isStockTracked,
+  registerEntry,
   summarizeLots,
 } from '../services/stockService';
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
@@ -107,6 +108,29 @@ export default function StockPage() {
       .sort((a, b) => a.insumo.name.localeCompare(b.insumo.name, 'pt-BR'));
   }, [rows, searchTerm, filterCategory, filterStatus]);
 
+  // Item novo com quantidade: o cadastro precisa chegar ao banco antes do lote
+  const saveItem = async (saved, initialEntry) => {
+    saveInsumo(saved);
+    setEditing(null);
+    if (!initialEntry) return;
+    await new Promise((resolve) => setTimeout(resolve, 100)); // deixa o estado novo chegar à fila de sincronização
+    try {
+      await flushPending();
+      await registerEntry({
+        insumoId: saved.id,
+        packages: initialEntry.quantity,
+        unitsPerPackage: 1,
+        totalCost: initialEntry.totalCost,
+        packageType: 'unidade',
+        expiresAt: initialEntry.expiresAt,
+        notes: 'Estoque inicial',
+      });
+      await loadLots();
+    } catch (error) {
+      setLotsError(`"${saved.name}" foi cadastrado, mas a quantidade inicial não entrou: ${error.message} Use o botão “Entrada” do item.`);
+    }
+  };
+
   const handleDelete = async (insumo) => {
     const count = usageCount.get(insumo.id) || 0;
     const hasStock = (stock.get(insumo.id)?.lots.length ?? 0) > 0;
@@ -176,10 +200,7 @@ export default function StockPage() {
         <InsumoModal
           insumo={editing.id ? editing : null}
           onClose={() => setEditing(null)}
-          onSave={(saved) => {
-            saveInsumo(saved);
-            setEditing(null);
-          }}
+          onSave={saveItem}
         />
       )}
 
@@ -229,7 +250,7 @@ function StockRow({ row, usage, isWide, onEntry, onDetail, onEdit, onDelete }) {
   const badges = [];
   if (row.empty) badges.push({ text: 'Sem estoque', tone: 'danger' });
   else if (row.low) badges.push({ text: `Abaixo do mínimo (${formatDecimal(insumo.minStock, 3)} ${insumo.unit})`, tone: 'danger' });
-  if (row.expired) badges.push({ text: `${formatDecimal(entry.expired, 3)} ${insumo.unit} vencido`, tone: 'danger' });
+  if (row.expired) badges.push({ text: `${formatDecimal(entry.expired, 3)} ${insumo.unit} vencido, fora do saldo`, tone: 'danger' });
   else if (row.expiring) {
     badges.push({ text: row.expiryDays === 0 ? 'Vence hoje' : `Vence em ${row.expiryDays} dias (${formatDateBR(entry.nextExpiry)})`, tone: 'warning' });
   }
