@@ -9,7 +9,7 @@ import { AppModal, Button, Checkbox, COLORS, confirmAction, ErrorBanner, Field, 
  * Entrada de uma compra no estoque. A compra é informada como vem da nota:
  * ex: 3 caixas com 10 ampolas cada, R$ 45,00 por caixa = 30 ampolas a R$ 4,50.
  */
-export default function StockEntryModal({ insumo: initialInsumo, insumos, flushPending, onUpdateInsumo, onClose, onSaved }) {
+export default function StockEntryModal({ insumo: initialInsumo, insumos, flushPending, onUpdateInsumo, onNewItem, onClose, onSaved }) {
   const accent = useAccent();
   const isWide = useIsWide(560);
   const [insumoId, setInsumoId] = useState(initialInsumo?.id ?? '');
@@ -100,7 +100,7 @@ export default function StockEntryModal({ insumo: initialInsumo, insumos, flushP
 
   return (
     <AppModal
-      title="Entrada de compra"
+      title={initialInsumo ? 'Entrada de compra' : 'Adicionar ao estoque'}
       subtitle="Informe a compra como ela vem na nota: quantas embalagens e quanto vem em cada uma."
       maxWidth={600}
       onClose={onClose}
@@ -127,6 +127,9 @@ export default function StockEntryModal({ insumo: initialInsumo, insumos, flushP
           />
         )}
       </Field>
+      {!initialInsumo && onNewItem ? (
+        <Button small variant="secondary" label="+ O item ainda não existe: cadastrar" onPress={onNewItem} style={{ alignSelf: 'flex-start' }} />
+      ) : null}
 
       <View style={row}>
         <Field label="Embalagem" style={isWide ? styles.fieldWide : undefined}>

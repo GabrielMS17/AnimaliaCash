@@ -66,8 +66,13 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
   const [notes, setNotes] = useState(insumo?.notes ?? '');
   const [brand, setBrand] = useState(insumo?.brand ?? '');
   const [minStock, setMinStock] = useState(insumo?.minStock ?? 0);
-  const [initialQuantity, setInitialQuantity] = useState(0);
+  const [entryPackages, setEntryPackages] = useState(1);
+  const [entryQuantity, setEntryQuantity] = useState(0);
+  const [entryLot, setEntryLot] = useState('');
   const [initialExpiry, setInitialExpiry] = useState('');
+  const [saving, setSaving] = useState(false);
+  // O mesmo id em uma nova tentativa: se a entrada falhar, salvar de novo não duplica o item
+  const [itemId] = useState(() => insumo?.id ?? `ins_${Date.now()}`);
   // Sem escolha do usuário, segue a unidade: kWh, minuto, hora e diária não têm estoque
   const [trackChoice, setTrackChoice] = useState(insumo?.trackStock);
   const autoTrack = !NON_STOCK_UNITS.includes(unit);
@@ -79,6 +84,9 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
   const ofThe = isMasculine ? 'do' : 'da';
   const inThe = isMasculine ? 'no' : 'na';
   const costPerUnit = directCost ? manualCost : packagePrice > 0 && packageSize > 0 ? packagePrice / packageSize : 0;
+  // Primeira entrada (só no cadastro): em embalagens ou, no custo direto, na própria unidade
+  const entryUnits = directCost ? entryQuantity : entryPackages * packageSize;
+  const entryTotal = directCost ? entryQuantity * manualCost : entryPackages * packagePrice;
 
   const handleSave = async () => {
     // 1. Sanitização e Validação do Nome (Proteção contra strings vazias ou excessivas)
@@ -120,33 +128,47 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
 
     // Item novo pode já entrar com estoque
     let initialEntry = null;
-    if (!isEditing && trackStock && initialQuantity > 0) {
+    if (!isEditing && trackStock && entryUnits > 0) {
       let expiresAt;
       try {
         expiresAt = parseDateBR(initialExpiry);
       } catch (parseError) {
         return setErrorMsg(parseError.message);
       }
-      const question = expiredLotQuestion(expiresAt, `${formatDecimal(initialQuantity, 3)} ${unit}`);
+      const question = expiredLotQuestion(expiresAt, `${formatDecimal(entryUnits, 3)} ${unit}`);
       if (question && !(await confirmAction(question, 'Salvar mesmo assim'))) return undefined;
-      initialEntry = { quantity: initialQuantity, expiresAt, totalCost: Number((initialQuantity * costPerUnit).toFixed(2)) };
+      initialEntry = {
+        packages: directCost ? entryQuantity : entryPackages,
+        unitsPerPackage: directCost ? 1 : packageSize,
+        packageType: directCost ? 'unidade' : packageType,
+        totalCost: Number(entryTotal.toFixed(2)),
+        lotNumber: entryLot.trim(),
+        expiresAt,
+      };
     }
 
     // 4. Envio seguro com dados validados
-    onSave({
-      id: insumo?.id ?? `ins_${Date.now()}`,
-      name: sanitizedName,
-      category,
-      unit,
-      costPerUnit,
-      packageType: directCost ? undefined : packageType,
-      packagePrice: directCost ? undefined : Number(packagePrice),
-      packageSize: directCost ? undefined : Number(packageSize),
-      notes: sanitizedNotes || undefined,
-      brand: sanitizedBrand || undefined,
-      minStock: trackStock && minStock > 0 ? minStock : undefined,
-      trackStock: trackStock === autoTrack ? undefined : trackStock,
-    }, initialEntry);
+    setSaving(true);
+    setErrorMsg('');
+    try {
+      await onSave({
+        id: itemId,
+        name: sanitizedName,
+        category,
+        unit,
+        costPerUnit,
+        packageType: directCost ? undefined : packageType,
+        packagePrice: directCost ? undefined : Number(packagePrice),
+        packageSize: directCost ? undefined : Number(packageSize),
+        notes: sanitizedNotes || undefined,
+        brand: sanitizedBrand || undefined,
+        minStock: trackStock && minStock > 0 ? minStock : undefined,
+        trackStock: trackStock === autoTrack ? undefined : trackStock,
+      }, initialEntry);
+    } catch (error) {
+      setErrorMsg(error.message);
+      setSaving(false);
+    }
     return undefined;
   };
 
@@ -155,13 +177,15 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
   return (
     <AppModal
       title={isEditing ? 'Editar item do estoque' : 'Novo item do estoque'}
-      subtitle="Alterações no custo refletem em todos os procedimentos que usam este item."
+      subtitle={isEditing
+        ? 'Alterações no custo refletem em todos os procedimentos que usam este item.'
+        : 'Cadastro e primeira compra juntos: o item já entra com saldo, lote e validade.'}
       maxWidth={560}
       onClose={onClose}
       footer={
         <View style={styles.footer}>
           <Button label="Cancelar" variant="secondary" onPress={onClose} />
-          <Button label="Salvar" onPress={handleSave} />
+          <Button label={saving ? 'Salvando…' : isEditing || !trackStock || !(entryUnits > 0) ? 'Salvar' : 'Cadastrar e dar entrada'} onPress={handleSave} disabled={saving} />
         </View>
       }
     >
@@ -273,28 +297,44 @@ export default function InsumoModal({ insumo, onClose, onSave, categoryOptions =
           label="Controlar o estoque deste item (desmarque para energia, água da torneira, tempo...)"
         />
         {trackStock && !isEditing && (
-          <View style={row}>
-            <Field
-              label="Quantidade que você já tem (opcional)"
-              hint={`Na unidade de uso (${unit}). Entra como o primeiro lote.`}
-              style={isWide ? styles.fieldWide : undefined}
-            >
-              <NumberInput min={0} placeholder="0" value={initialQuantity} onChange={setInitialQuantity} suffix={unit} />
-            </Field>
-            <Field label="Validade (opcional)" style={isWide ? styles.fieldWide : undefined}>
-              <Input
-                placeholder="DD/MM/AAAA"
-                value={initialExpiry}
-                onChangeText={(text) => {
-                  setInitialExpiry(maskDateBR(text));
-                  setErrorMsg('');
-                }}
-                keyboardType="number-pad"
-                inputMode="numeric"
-                maxLength={10}
-              />
-            </Field>
-          </View>
+          <>
+            <View style={row}>
+              {directCost ? (
+                <Field label="Quantidade que está entrando" hint="Deixe 0 para só cadastrar o item." style={isWide ? styles.fieldWide : undefined}>
+                  <NumberInput min={0} placeholder="0" value={entryQuantity} onChange={setEntryQuantity} suffix={unit} />
+                </Field>
+              ) : (
+                <Field label="Embalagens entrando" hint="Deixe 0 para só cadastrar o item." style={isWide ? styles.fieldWide : undefined}>
+                  <NumberInput min={0} placeholder="Ex: 3" value={entryPackages} onChange={setEntryPackages} />
+                </Field>
+              )}
+              <Field label="Número do lote (opcional)" style={isWide ? styles.fieldWide : undefined}>
+                <Input placeholder="Ex: L2026-045" value={entryLot} onChangeText={setEntryLot} autoCapitalize="characters" />
+              </Field>
+              <Field label="Validade (opcional)" style={isWide ? styles.fieldWide : undefined}>
+                <Input
+                  placeholder="DD/MM/AAAA"
+                  value={initialExpiry}
+                  onChangeText={(text) => {
+                    setInitialExpiry(maskDateBR(text));
+                    setErrorMsg('');
+                  }}
+                  keyboardType="number-pad"
+                  inputMode="numeric"
+                  maxLength={10}
+                />
+              </Field>
+            </View>
+            <View style={[styles.costBox, { backgroundColor: accent.soft }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.costLabel}>Entra no estoque</Text>
+                <Text style={styles.costFormula}>
+                  {directCost ? '' : `${formatDecimal(entryPackages, 3)} × ${formatDecimal(packageSize, 3)} ${unit} · `}total {formatBRL(entryTotal)}
+                </Text>
+              </View>
+              <Text style={styles.costValue}>{formatDecimal(entryUnits, 3)} {unit}</Text>
+            </View>
+          </>
         )}
         {trackStock && isEditing && (
           <Text style={styles.muted}>Para somar quantidade, use o botão “Entrada” do item. Para corrigir um lote, use “Lotes”.</Text>
