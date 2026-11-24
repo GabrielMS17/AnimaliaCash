@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAnimaliaData } from '../store/AnimaliaDataContext';
 import { supabase } from '../supabase';
-import { formatBRL } from '../utils/costCalculations';
-import { Button, Checkbox, COLORS, confirmAction, Field, Input, NumberInput, SectionHeader, useIsWide } from './ui';
+import { findCommissionConflict, formatBRL, getTargetMargin } from '../utils/costCalculations';
+import { Button, Checkbox, COLORS, confirmAction, ErrorBanner, Field, Input, NumberInput, SectionHeader, useIsWide } from './ui';
 
 const withoutProfessionals = ({ externalProfessionals, ...rest }) => rest;
 const sameFields = (a, b) => JSON.stringify(withoutProfessionals(a)) === JSON.stringify(withoutProfessionals(b));
@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const [professionalCost, setProfessionalCost] = useState(0);
   const [editingProfessionalId, setEditingProfessionalId] = useState(null);
   const [professionalMessage, setProfessionalMessage] = useState('');
+  const [commissionError, setCommissionError] = useState('');
 
   // Acompanha mudanças vindas de fora do formulário (ex: dados baixados do Supabase)
   const [lastSettings, setLastSettings] = useState(settings);
@@ -131,7 +132,7 @@ export default function SettingsPage() {
           </View>
         </Section>
 
-        <Section title="Comissões padrão" description="Para os profissionais da clínica, aplicado aos procedimentos sem comissão própria. Terceirizados não recebem comissão e o custo deles fica fora do cálculo: a base é o preço menos esse custo ou, sem preço, os insumos mais o custo operacional.">
+        <Section title="Comissões padrão" description="Percentual sobre o preço cobrado, para os profissionais da clínica, aplicado aos procedimentos sem comissão própria. Sem preço na ficha, usa o preço sugerido. No Resultado do mês, usa o valor cobrado em cada atendimento.">
           <View style={row}>
             <Field label="Cirurgias" style={[styles.cell, isWide && styles.cellWide]}>
               <NumberInput suffix="%" min={0} max={100} value={form.defaultVetCommissionSurgeryPercent ?? 0} onChange={(value) => update('defaultVetCommissionSurgeryPercent', value)} />
@@ -145,6 +146,7 @@ export default function SettingsPage() {
           </View>
         </Section>
 
+        <ErrorBanner message={commissionError} />
         <View style={styles.saveBar}>
           {saved && !isDirty && <Text style={styles.savedText}>✓ Salvo</Text>}
           <Button
@@ -152,6 +154,9 @@ export default function SettingsPage() {
             disabled={!isDirty}
             onPress={() => {
               const clinicName = form.clinicName.trim();
+              const blocked = findCommissionConflict(procedures, { ...settings, ...withoutProfessionals(form) });
+              setCommissionError(blocked ? `Comissão alta demais: em "${blocked.name}", a margem de ${getTargetMargin(blocked)}% + a comissão chegam a 100%.` : '');
+              if (blocked) return;
               saveSettings({ ...settings, ...withoutProfessionals(form), clinicName });
               setForm((prev) => ({ ...prev, clinicName }));
               setSaved(true);

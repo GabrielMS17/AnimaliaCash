@@ -190,28 +190,24 @@ export function calculateProcedure(
   });
   const externalProfessionalCost = externalProfessionalDetails.reduce((total, item) => total + Math.max(0, item.cost), 0);
 
-  // Comissão do Médico Veterinário / Profissional Responsável
-  let vetCommissionCost = 0;
-  if (procedure.vetCommissionType === 'fixed') {
-    vetCommissionCost = procedure.vetCommissionValue || 0;
-  } else {
-    const commissionPercent = procedure.vetCommissionValue ?? getDefaultCommissionPercent(procedure.category, settings);
-    if (commissionPercent > 0) {
-      // Terceirizados não participam da comissão: o custo deles fica fora da base
-      const baseForCommission = procedure.suggestedPrice && procedure.suggestedPrice > 0
-        ? Math.max(0, procedure.suggestedPrice - externalProfessionalCost)
-        : (directCost + operationalCost);
-      vetCommissionCost = (baseForCommission * commissionPercent) / 100;
-    }
-  }
+  // Comissão do profissional da clínica: percentual sobre o preço cobrado, ou valor fixo.
+  // Sem preço na ficha, usa o preço sugerido, que já reserva a margem e a própria comissão.
+  const hasFixedCommission = procedure.vetCommissionType === 'fixed';
+  const vetCommissionFixed = hasFixedCommission ? procedure.vetCommissionValue || 0 : 0;
+  const vetCommissionPercent = hasFixedCommission
+    ? 0
+    : Math.max(0, procedure.vetCommissionValue ?? getDefaultCommissionPercent(procedure.category, settings));
+  const baseCost = directCost + externalProfessionalCost + operationalCost;
+  const targetMargin = getTargetMargin(procedure);
+  const priceShare = 1 - (targetMargin + vetCommissionPercent) / 100;
+  const suggestedPriceByMargin = targetMargin > 0 && targetMargin < 95 && priceShare > 0
+    ? (baseCost + vetCommissionFixed) / priceShare
+    : (baseCost + vetCommissionFixed) * (1 + targetMargin / 100);
+  const commissionBase = procedure.suggestedPrice && procedure.suggestedPrice > 0 ? procedure.suggestedPrice : suggestedPriceByMargin;
+  const vetCommissionCost = hasFixedCommission ? vetCommissionFixed : (commissionBase * vetCommissionPercent) / 100;
 
   // Custo Total da Clínica: insumos, equipe terceirizada, comissão e custo operacional.
-  const totalCost = directCost + externalProfessionalCost + operationalCost + vetCommissionCost;
-
-  const targetMargin = procedure.targetMarginPercent || 50;
-  const suggestedPriceByMargin = targetMargin > 0 && targetMargin < 95
-    ? totalCost / (1 - targetMargin / 100)
-    : totalCost * (1 + targetMargin / 100);
+  const totalCost = baseCost + vetCommissionCost;
 
   const currentPrice = procedure.suggestedPrice || totalCost;
   const profitAtCurrentPrice = currentPrice - totalCost;
@@ -224,6 +220,8 @@ export function calculateProcedure(
       insumosCost: directCost,
       externalProfessionalCost,
       vetCommissionCost,
+      vetCommissionPercent,
+      vetCommissionFixed,
       operationalCost,
       totalCost,
       suggestedPriceByMargin,
@@ -235,6 +233,23 @@ export function calculateProcedure(
     itemDetails,
     itemsCount: itemDetails.length,
   };
+}
+
+/** Margem de lucro desejada no procedimento (%). */
+export function getTargetMargin(procedure: Procedure): number {
+  return procedure.targetMarginPercent || 50;
+}
+
+/**
+ * Procedimento sem preço em que margem + comissão chegam a 100%: não existe preço que pague as duas.
+ * Retorna o primeiro encontrado, ou null.
+ */
+export function findCommissionConflict(procedures: Procedure[], settings: ClinicSettings): Procedure | null {
+  return procedures.find((procedure) => {
+    if (procedure.vetCommissionType === 'fixed' || (procedure.suggestedPrice ?? 0) > 0) return false;
+    const percent = procedure.vetCommissionValue ?? getDefaultCommissionPercent(procedure.category, settings);
+    return getTargetMargin(procedure) + percent >= 100;
+  }) ?? null;
 }
 
 /** Tempo que entra no custo operacional. Na internação é o atendimento da equipe, não a diária inteira. */

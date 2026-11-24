@@ -6,7 +6,9 @@ import {
   formatDecimal,
   formatUnitCost,
   getCategoryLabel,
+  findCommissionConflict,
   getDefaultCommissionPercent,
+  getTargetMargin,
 } from '../utils/costCalculations';
 import { UNIT_OPTIONS } from './InsumoModal';
 import {
@@ -211,6 +213,11 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
     if (vetCommissionType === 'percent' && parsedCommission > 100) {
       setTab('custos');
       setErrorMsg('O percentual de comissão não pode ultrapassar 100%.');
+      return;
+    }
+    if (findCommissionConflict([draft], settings)) {
+      setTab('custos');
+      setErrorMsg(`Margem de ${formatDecimal(getTargetMargin(draft))}% + comissão não pode chegar a 100% sem um preço definido.`);
       return;
     }
 
@@ -513,7 +520,7 @@ export default function ProcedureEditModal({ procedure, defaultCategory, insumos
 
             <Field
               label="Preço cobrado do tutor (opcional)"
-              hint="Quando informado, a comissão percentual é calculada sobre este preço menos o custo dos terceirizados. Sem preço, ela incide sobre os insumos e o custo operacional."
+              hint={`A comissão percentual é calculada sobre este preço. Sem preço, usa o preço sugerido pela margem: ${formatBRL(breakdown.suggestedPriceByMargin)}.`}
             >
               <NumberInput prefix="R$" min={0} placeholder="0,00" value={price} onChange={setPrice} />
             </Field>
